@@ -1,0 +1,14 @@
+# Generic ATS job-posting selectors. These are drift probes, not the whole
+# extractor contract; extract.js has fallbacks for each field.
+selectors:
+  - field: title_h1
+    selector: "h1"
+    required: true
+  - field: greenhouse_title
+    selector: "[data-qa='job-title']"
+  - field: lever_title
+    selector: ".posting-headline h2"
+  - field: ashby_description
+    selector: "[data-automation-id='jobPostingDescription']"
+  - field: apply_link
+    selector: "a[href*='apply'], a[href*='application']"

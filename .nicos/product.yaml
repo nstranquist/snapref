@@ -1,0 +1,23 @@
+schema_version: 1
+id: product.pageskein
+name: PageSkein
+surface: products
+kind: product
+status: experimental
+persona: Agent developer who needs local browser automation with typed authority, executable refs, and evidence receipts.
+jtbd: Run inspectable browser workflows without using a personal browser profile or granting hidden host authority.
+launch: built
+launch_blocker: Physical Windows and Chrome verification, public naming clearance, repository creation, and publication remain human-gated.
+license: Apache-2.0
+tags:
+  - browser-automation
+  - agents
+  - local-first
+  - go
+checks:
+  - name: verify-release
+    command: [make, verify-release]
+  - name: self-test
+    command: [go, run, ./cmd/pageskein, self-test]
+description: Local browser automation release candidate with isolated managed runtimes, revision-bound refs, policy gates, and reproducible artifacts.
+portfolio_manifest: portfolio/manifest.yaml

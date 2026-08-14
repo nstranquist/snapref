@@ -1,0 +1,20 @@
+# Drift-relevant GitHub selectors. The github skill is browser-light by
+# design (the GitHub REST API covers most data faster); these selectors
+# are for the few flows that do need DOM (trending page, star/unstar
+# forms, login probe). Mixed-page drift reports are expected: the
+# trending selector is dead on a repo page and vice versa.
+selectors:
+  - field: trending_repo_card
+    selector: "article.Box-row"
+  - field: trending_repo_link
+    selector: "h2 a"
+  - field: trending_stars_period
+    selector: ".d-inline-block.float-sm-right"
+  - field: trending_language
+    selector: '[itemprop="programmingLanguage"]'
+  - field: user_login_meta
+    selector: 'meta[name="user-login"]'
+  - field: star_form
+    selector: 'form[action$="/star"]'
+  - field: unstar_form
+    selector: 'form[action$="/unstar"]'

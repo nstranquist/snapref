@@ -1,0 +1,15 @@
+selectors:
+  - field: likes
+    selector: '[data-e2e="like-count"]'
+  - field: likes_alt
+    selector: '[data-e2e="browse-like-count"]'
+  - field: comments
+    selector: '[data-e2e="comment-count"]'
+  - field: comments_alt
+    selector: '[data-e2e="browse-comment-count"]'
+  - field: shares
+    selector: '[data-e2e="share-count"]'
+  - field: username
+    selector: '[data-e2e="browse-username"]'
+  - field: ld_json
+    selector: 'script[type="application/ld+json"]'

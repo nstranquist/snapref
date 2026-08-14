@@ -1,0 +1,8 @@
+{
+  "name": "@nstranquist/pageskein",
+  "version": "0.2.0-rc.1",
+  "private": true,
+  "description": "Local-first browser automation with executable refs, typed actuation, policy-gated MCP, and evidence receipts.",
+  "license": "Apache-2.0",
+  "type": "module"
+}

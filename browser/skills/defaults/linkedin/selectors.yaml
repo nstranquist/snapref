@@ -1,0 +1,19 @@
+# LinkedIn drift-check selectors. Edit freely — drift commands re-read
+# this file every run. Add more `- field: …` entries to extend coverage.
+selectors:
+  - field: name_h1
+    selector: "h1.text-heading-xlarge"
+  - field: name_h1_alt
+    selector: ".pv-text-details__left-panel h1"
+  - field: headline
+    selector: ".text-body-medium.break-words"
+  - field: experience_first
+    selector: ".pvs-list__paged-list-item"
+  - field: location
+    selector: ".text-body-small.inline.t-black--light.break-words"
+  - field: about_anchor
+    selector: "#about"
+  - field: company_name_h1
+    selector: "h1.org-top-card-summary__title"
+  - field: company_tagline
+    selector: ".org-top-card-summary__tagline"

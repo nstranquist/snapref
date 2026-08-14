@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-07-13T00:34:44Z",
+  "fixture": "local password + mutable button",
+  "method": "same local fixture; snapshot payload bytes/4 is an explicit token approximation; replay compares unchanged snapshots; stale-ref test changes the button accessible name before using the old ref",
+  "providers": [
+    {
+      "provider": "PageSkein",
+      "version": "0.1.0-rc.1",
+      "snapshot_bytes": 764,
+      "approx_snapshot_tokens": 191,
+      "deterministic_replay": true,
+      "secret_leaked": false,
+      "stale_ref_rejected": true,
+      "audit_receipt": true,
+      "notes": "Live Go API + MCP audit path; snapshot values are checked against the exact marker."
+    },
+    {
+      "provider": "agent-browser",
+      "version": "agent-browser 0.31.1",
+      "snapshot_bytes": 314,
+      "approx_snapshot_tokens": 79,
+      "deterministic_replay": true,
+      "secret_leaked": false,
+      "stale_ref_rejected": false,
+      "audit_receipt": false,
+      "notes": "Live current npx CLI. Audit=false means no per-command audit receipt was found in the invoked CLI output; it is not a claim about optional external logging integrations."
+    },
+    {
+      "provider": "@playwright/mcp",
+      "version": "1.62.0-alpha-1783623505000",
+      "snapshot_bytes": 278,
+      "approx_snapshot_tokens": 70,
+      "deterministic_replay": true,
+      "secret_leaked": true,
+      "stale_ref_rejected": true,
+      "audit_receipt": false,
+      "notes": "Live current npx MCP. Audit=false means the stdio response did not include a durable per-command audit receipt; it is not a claim about wrapper-level logging."
+    }
+  ]
+}

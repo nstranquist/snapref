@@ -1,0 +1,13 @@
+selectors:
+  - field: interactionCount
+    selector: 'meta[itemprop="interactionCount"]'
+  - field: title_meta
+    selector: 'meta[name="title"]'
+  - field: og_title
+    selector: 'meta[property="og:title"]'
+  - field: view_count_dom
+    selector: 'ytd-video-view-count-renderer span'
+  - field: channel_link
+    selector: 'ytd-channel-name a'
+  - field: owner_name
+    selector: '#owner-name a'

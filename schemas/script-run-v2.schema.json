@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pageskein:schema:script-run:v2",
+  "title": "PageSkein script run manifest v2",
+  "type": "object",
+  "required": ["schema_version", "build_version", "run_id", "plan", "plan_hash", "source", "session", "started_at", "ended_at", "ok", "steps"],
+  "properties": {
+    "schema_version": {"const": 2},
+    "build_version": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "plan": {"type": "string"},
+    "plan_hash": {"type": "string", "minLength": 1},
+    "source": {"enum": ["yaml", "json", "star", "sdk"]},
+    "session": {"type": "string", "minLength": 1},
+    "started_at": {"type": "string", "format": "date-time"},
+    "ended_at": {"type": "string", "format": "date-time"},
+    "ok": {"type": "boolean"},
+    "steps": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/step"}
+    },
+    "outputs": {"type": "array", "items": {"type": "object"}},
+    "vars": {"type": "object", "additionalProperties": {"type": "string"}}
+  },
+  "$defs": {
+    "error_class": {
+      "enum": ["usage", "policy", "assertion", "selector", "transport", "timeout", "product", "internal"]
+    },
+    "step": {
+      "type": "object",
+      "required": ["schema_version", "build_version", "index", "verb", "ok", "duration_ms"],
+      "properties": {
+        "schema_version": {"const": 2},
+        "build_version": {"type": "string", "minLength": 1},
+        "index": {"type": "integer", "minimum": 0},
+        "verb": {"type": "string", "minLength": 1},
+        "label": {"type": "string"},
+        "ok": {"type": "boolean"},
+        "skipped": {"type": "boolean"},
+        "duration_ms": {"type": "integer", "minimum": 0},
+        "captured": {"type": "object"},
+        "assert": {"type": "object"},
+        "screenshot": {"type": "string"},
+        "screenshot_mode": {"enum": ["viewport", "full-page"]},
+        "screenshot_width_px": {"type": "integer", "minimum": 1},
+        "screenshot_height_px": {"type": "integer", "minimum": 1},
+        "error": {"type": "string"},
+        "error_class": {"$ref": "#/$defs/error_class"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

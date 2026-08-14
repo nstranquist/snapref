@@ -1,0 +1,11 @@
+selectors:
+  - field: ios_url_meta
+    selector: 'meta[property="al:ios:url"]'
+  - field: android_url_meta
+    selector: 'meta[property="al:android:url"]'
+  - field: og_description
+    selector: 'meta[property="og:description"]'
+  - field: og_title
+    selector: 'meta[property="og:title"]'
+  - field: json_scripts
+    selector: 'script[type="application/json"]'
