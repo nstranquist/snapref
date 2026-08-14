@@ -51,6 +51,8 @@ will be coordinated after a fix and regression test exist.
 - Existing output directories retain unrelated entries. PageSkein replaces
   only named regular artifacts and restores prior artifacts after a failed
   publication step.
+- If restoration fails, PageSkein preserves the recovery staging directory and
+  prints its path. Keep that directory until you recover the prior artifacts.
 - Run release builds in an operator-controlled directory. The file transaction
   is not a boundary against an untrusted concurrent writer.
 - The physical Windows+Chrome gate must pass before Windows support is publicly

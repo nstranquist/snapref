@@ -155,6 +155,50 @@ func TestReleaseArtifactsRejectNonRegularManagedDestination(t *testing.T) {
 	}
 }
 
+func TestPublishReleasePreservesRecoveryFilesWhenRollbackFails(t *testing.T) {
+	root := t.TempDir()
+	stage := filepath.Join(root, "stage")
+	out := filepath.Join(root, "out")
+	backup := filepath.Join(stage, ".previous")
+	for _, dir := range []string{stage, out} {
+		if err := os.Mkdir(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, name := range []string{"one", "two"} {
+		if err := os.WriteFile(filepath.Join(stage, name), []byte("new "+name), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(out, name), []byte("old "+name), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	injectedRename := func(oldPath, newPath string) error {
+		switch oldPath {
+		case filepath.Join(stage, "two"):
+			return errors.New("injected publication failure")
+		case filepath.Join(backup, "one"):
+			return errors.New("injected restoration failure")
+		default:
+			return os.Rename(oldPath, newPath)
+		}
+	}
+	result, err := publishReleaseWithRename(stage, out, []string{"one", "two"}, injectedRename)
+	if err == nil {
+		t.Fatal("publishReleaseWithRename succeeded, want rollback failure")
+	}
+	if result.stageConsumed || !result.preserveStage {
+		t.Fatalf("publication result = %+v, want preserved stage", result)
+	}
+	assertFileBody(t, filepath.Join(backup, "one"), "old one")
+	assertFileBody(t, filepath.Join(out, "two"), "old two")
+	assertFileBody(t, filepath.Join(stage, "two"), "new two")
+	if _, err := os.Lstat(filepath.Join(out, "one")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("partially published artifact remains: %v", err)
+	}
+}
+
 func TestSafeReleaseOutputRejectsSymlink(t *testing.T) {
 	root := releaseFixture(t)
 	targetDir := filepath.Join(root, "real-dist")
@@ -202,6 +246,17 @@ func releaseFixture(t *testing.T) string {
 
 func deterministicTestBuilder(_ string, target target, output string) error {
 	return os.WriteFile(output, []byte("pageskein "+target.OS+"/"+target.Arch+"\n"), 0o755)
+}
+
+func assertFileBody(t *testing.T, path, want string) {
+	t.Helper()
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != want {
+		t.Fatalf("%s = %q, want %q", path, body, want)
+	}
 }
 
 func compareReleaseDirsIgnoring(first, second string, ignored ...string) error {

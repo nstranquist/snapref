@@ -46,6 +46,8 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
   ancestors, symbolic-link outputs, and non-regular managed artifacts.
 - Release publication now uses a sibling staging directory and an exact-file
   rollback transaction. Build failures leave existing output unchanged.
+- If rollback cannot restore every prior artifact, the recovery staging
+  directory is preserved and reported instead of deleted.
 
 ### Added
 

@@ -99,6 +99,10 @@ Unrelated output files remain unchanged. The command rejects filesystem roots,
 the source tree, source-tree ancestors, symbolic-link outputs, and non-regular
 managed artifacts.
 
+If restoration fails after a publication error, the command prints and keeps
+the recovery staging directory. Do not delete that directory until you restore
+or copy the retained artifacts.
+
 Use an operator-controlled output directory. The release transaction does not
 protect against an untrusted process that changes the directory concurrently.
 

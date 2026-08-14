@@ -155,9 +155,12 @@ func releaseArtifacts(root, out, version string, buildBinary buildFunc) error {
 	if err := os.Chmod(stage, 0o755); err != nil {
 		return fmt.Errorf("set release directory mode: %w", err)
 	}
-	consumed, err := publishRelease(stage, out, append(names, "SHA256SUMS"))
-	if consumed {
+	result, err := publishRelease(stage, out, append(names, "SHA256SUMS"))
+	if result.stageConsumed || result.preserveStage {
 		stageOwned = false
+	}
+	if result.preserveStage {
+		return fmt.Errorf("%w; recovery files preserved at %s", err, stage)
 	}
 	return err
 }
@@ -329,29 +332,40 @@ func containsPath(parent, child string) bool {
 	return relative == "." || (relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)))
 }
 
-func publishRelease(stage, out string, names []string) (bool, error) {
+type publicationResult struct {
+	stageConsumed bool
+	preserveStage bool
+}
+
+type renameFunc func(oldPath, newPath string) error
+
+func publishRelease(stage, out string, names []string) (publicationResult, error) {
+	return publishReleaseWithRename(stage, out, names, os.Rename)
+}
+
+func publishReleaseWithRename(stage, out string, names []string, rename renameFunc) (publicationResult, error) {
 	for _, name := range names {
 		info, err := os.Lstat(filepath.Join(stage, name))
 		if err != nil {
-			return false, fmt.Errorf("inspect staged artifact %s: %w", name, err)
+			return publicationResult{}, fmt.Errorf("inspect staged artifact %s: %w", name, err)
 		}
 		if !info.Mode().IsRegular() {
-			return false, fmt.Errorf("staged artifact %s is not a regular file", name)
+			return publicationResult{}, fmt.Errorf("staged artifact %s is not a regular file", name)
 		}
 	}
 
 	outInfo, err := os.Lstat(out)
 	if errors.Is(err, os.ErrNotExist) {
-		if err := os.Rename(stage, out); err != nil {
-			return false, fmt.Errorf("publish release directory: %w", err)
+		if err := rename(stage, out); err != nil {
+			return publicationResult{}, fmt.Errorf("publish release directory: %w", err)
 		}
-		return true, nil
+		return publicationResult{stageConsumed: true}, nil
 	}
 	if err != nil {
-		return false, fmt.Errorf("inspect release output before publication: %w", err)
+		return publicationResult{}, fmt.Errorf("inspect release output before publication: %w", err)
 	}
 	if outInfo.Mode()&os.ModeSymlink != 0 || !outInfo.IsDir() {
-		return false, fmt.Errorf("release output %s changed after validation", out)
+		return publicationResult{}, fmt.Errorf("release output %s changed after validation", out)
 	}
 
 	existing := make([]string, 0, len(names))
@@ -362,39 +376,39 @@ func publishRelease(stage, out string, names []string) (bool, error) {
 			continue
 		}
 		if err != nil {
-			return false, fmt.Errorf("inspect existing artifact %s: %w", name, err)
+			return publicationResult{}, fmt.Errorf("inspect existing artifact %s: %w", name, err)
 		}
 		if !info.Mode().IsRegular() {
-			return false, fmt.Errorf("refuse to replace non-regular release artifact %s", destination)
+			return publicationResult{}, fmt.Errorf("refuse to replace non-regular release artifact %s", destination)
 		}
 		existing = append(existing, name)
 	}
 
 	backup := filepath.Join(stage, ".previous")
 	if err := os.Mkdir(backup, 0o700); err != nil {
-		return false, fmt.Errorf("create release rollback directory: %w", err)
+		return publicationResult{}, fmt.Errorf("create release rollback directory: %w", err)
 	}
 	movedExisting := make([]string, 0, len(existing))
 	for _, name := range existing {
-		if err := os.Rename(filepath.Join(out, name), filepath.Join(backup, name)); err != nil {
-			rollbackErr := restoreRelease(out, backup, movedExisting, nil)
-			return false, errors.Join(fmt.Errorf("stage existing artifact %s for replacement: %w", name, err), rollbackErr)
+		if err := rename(filepath.Join(out, name), filepath.Join(backup, name)); err != nil {
+			rollbackErr := restoreRelease(out, backup, movedExisting, nil, rename)
+			return publicationResult{preserveStage: rollbackErr != nil}, errors.Join(fmt.Errorf("stage existing artifact %s for replacement: %w", name, err), rollbackErr)
 		}
 		movedExisting = append(movedExisting, name)
 	}
 
 	installed := make([]string, 0, len(names))
 	for _, name := range names {
-		if err := os.Rename(filepath.Join(stage, name), filepath.Join(out, name)); err != nil {
-			rollbackErr := restoreRelease(out, backup, movedExisting, installed)
-			return false, errors.Join(fmt.Errorf("publish artifact %s: %w", name, err), rollbackErr)
+		if err := rename(filepath.Join(stage, name), filepath.Join(out, name)); err != nil {
+			rollbackErr := restoreRelease(out, backup, movedExisting, installed, rename)
+			return publicationResult{preserveStage: rollbackErr != nil}, errors.Join(fmt.Errorf("publish artifact %s: %w", name, err), rollbackErr)
 		}
 		installed = append(installed, name)
 	}
-	return false, nil
+	return publicationResult{}, nil
 }
 
-func restoreRelease(out, backup string, movedExisting, installed []string) error {
+func restoreRelease(out, backup string, movedExisting, installed []string, rename renameFunc) error {
 	var errs []error
 	for i := len(installed) - 1; i >= 0; i-- {
 		name := installed[i]
@@ -404,7 +418,7 @@ func restoreRelease(out, backup string, movedExisting, installed []string) error
 	}
 	for i := len(movedExisting) - 1; i >= 0; i-- {
 		name := movedExisting[i]
-		if err := os.Rename(filepath.Join(backup, name), filepath.Join(out, name)); err != nil {
+		if err := rename(filepath.Join(backup, name), filepath.Join(out, name)); err != nil {
 			errs = append(errs, fmt.Errorf("restore previous artifact %s: %w", name, err))
 		}
 	}
