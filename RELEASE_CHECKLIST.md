@@ -5,6 +5,7 @@ repository, tag, module version, package, or binary release.
 
 - [ ] Clear the public name and module path with the repository owner.
 - [ ] Run `make verify-release` from a clean standalone checkout.
+- [ ] Run `gitleaks git . --redact=100 --no-banner` and resolve every finding.
 - [ ] Confirm that `EXTRACTION.json` matches the reviewed factory source.
 - [ ] Run `pageskein self-test` with the selected managed runtime.
 - [ ] Pass the physical Windows and Chrome gate. Wine evidence is not enough.

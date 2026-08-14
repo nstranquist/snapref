@@ -36,6 +36,8 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ### Security
 
+- Full-history secret scans keep redaction fixtures in scope and allow only the
+  exact synthetic values in the snapshot redaction test.
 - Browser and page CDP endpoints reject redirects, oversized responses,
   non-literal loopback hosts, wrong ports or endpoint paths, userinfo, query or
   fragment data, and encoded/path-traversal forms; readiness also fails early

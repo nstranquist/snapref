@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Synthetic values used only by the snapshot redaction test"
+condition = "AND"
+regexTarget = "match"
+regexes = ['''DUMMY_PASSWORD_123", "DUMMY_API_KEY_456''']
+paths = ['''(^|/)browser/snapshot_test\.go$''']
