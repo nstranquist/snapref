@@ -475,7 +475,7 @@ func missingRuntimeError(kind RuntimeKind) error {
 }
 
 func runtimeInstallRemediation(kind RuntimeKind) string {
-	return fmt.Sprintf("ndev browser runtime install --runtime %s --channel stable", kind)
+	return fmt.Sprintf("pageskein runtime install --runtime %s --channel stable", kind)
 }
 
 func verifyInstalledRuntime(kind RuntimeKind, platform, version string) (ResolvedRuntime, RuntimeManifest, error) {

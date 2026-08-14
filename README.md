@@ -16,8 +16,9 @@ Windows support is not advertised until the physical Windows+Chrome gate passes.
 
 **Routing:** for daily agent automation inside nicos-tools use `ndev browser`
 (the adapter). Use this package when changing the engine, running
-`pageskein self-test`, or cutting a SemVer release of the core. See
-`.agents/skills/ndev-browser/SKILL.md` § `ndev browser` vs PageSkein.
+`pageskein self-test`, or cutting a SemVer release of the core. The nicos-tools
+factory has a repository-owned `.agents/skills/ndev-browser/SKILL.md` routing
+guide; that private guide is not part of this standalone module.
 
 ## Packages
 
@@ -106,13 +107,16 @@ or copy the retained artifacts.
 Use an operator-controlled output directory. The release transaction does not
 protect against an untrusted process that changes the directory concurrently.
 
-`EXTRACTION.json` pins a digest of every shared source path, file mode, and
-file byte. The extraction test fails when the factory and standalone source
-sets are not synchronized through a reviewed digest update.
+`EXTRACTION.json` pins a digest of every shared source path, canonical regular
+file mode, and file byte. Windows checkout permissions are normalized to the
+repository's required `0644` mode; other platforms fail on permission drift.
+The extraction test fails when the factory and standalone source sets are not
+synchronized through a reviewed digest update.
 
 The versioned public artifact contracts live in `schemas/telemetry-v2.schema.json`
 and `schemas/script-run-v2.schema.json`. Each release archive includes both
 schemas and `docs/VERSIONING.md`.
 
-Apache-2.0. See `SECURITY.md`, `docs/VERSIONING.md`, and
-`THIRD_PARTY_NOTICES.md` before redistribution.
+Apache-2.0. See `SECURITY.md`, `docs/VERSIONING.md`, `NOTICE`,
+`THIRD_PARTY_NOTICES.md`, and the bundled `third_party/licenses/` texts
+before redistribution.

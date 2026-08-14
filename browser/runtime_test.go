@@ -32,6 +32,15 @@ func TestResolveRuntimeFailsClosedWithoutManagedSelection(t *testing.T) {
 	}
 }
 
+func TestRuntimeInstallRemediationUsesStandaloneCLI(t *testing.T) {
+	for _, kind := range []RuntimeKind{RuntimeChromeForTesting, RuntimeHeadlessShell} {
+		want := "pageskein runtime install --runtime " + string(kind) + " --channel stable"
+		if got := runtimeInstallRemediation(kind); got != want {
+			t.Fatalf("runtimeInstallRemediation(%q) = %q, want %q", kind, got, want)
+		}
+	}
+}
+
 func TestResolveRuntimeRejectsIncompatibleShellBeforeInstallLookup(t *testing.T) {
 	t.Setenv("PAGESKEIN_HOME", t.TempDir())
 	_, err := ResolveRuntime(RuntimeRequest{Kind: RuntimeHeadlessShell, Headful: true})

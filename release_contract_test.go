@@ -3,8 +3,10 @@ package pageskein_test
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -15,8 +17,7 @@ func TestReleaseVersionSurfacesMatchSemanticVersioning(t *testing.T) {
 		t.Fatal(err)
 	}
 	version := strings.TrimSpace(string(versionRaw))
-	semver := regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$`)
-	if !semver.MatchString(version) {
+	if !validSemanticVersion(version) {
 		t.Fatalf("VERSION %q is not Semantic Versioning 2.0.0", version)
 	}
 	packageRaw, err := os.ReadFile("package.json")
@@ -80,6 +81,7 @@ func TestReleaseRepositoryContract(t *testing.T) {
 		"CHANGELOG.md",
 		"EXTRACTION.json",
 		"LICENSE",
+		"NOTICE",
 		"Makefile",
 		"README.md",
 		"SECURITY.md",
@@ -118,5 +120,115 @@ func TestReleaseRepositoryContract(t *testing.T) {
 	}
 	if !strings.Contains(string(makefile), "verify-release:") || !strings.Contains(string(makefile), "GOWORK=off") {
 		t.Fatalf("Makefile is missing standalone release verification:\n%s", makefile)
+	}
+}
+
+var semanticVersionPattern = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$`)
+
+func validSemanticVersion(version string) bool {
+	match := semanticVersionPattern.FindStringSubmatch(version)
+	if match == nil {
+		return false
+	}
+	for _, identifier := range strings.Split(match[4], ".") {
+		if len(identifier) < 2 || identifier[0] != '0' {
+			continue
+		}
+		numeric := true
+		for _, char := range identifier {
+			if char < '0' || char > '9' {
+				numeric = false
+				break
+			}
+		}
+		if numeric {
+			return false
+		}
+	}
+	return true
+}
+
+var thirdPartyDependencies = map[string]string{
+	"github.com/nstranquist/processtree": "third_party/licenses/github.com/nstranquist/processtree/LICENSE",
+	"github.com/chromedp/cdproto":        "third_party/licenses/github.com/chromedp/cdproto/LICENSE",
+	"github.com/chromedp/chromedp":       "third_party/licenses/github.com/chromedp/chromedp/LICENSE",
+	"github.com/chromedp/sysutil":        "third_party/licenses/github.com/chromedp/sysutil/LICENSE",
+	"github.com/go-json-experiment/json": "third_party/licenses/github.com/go-json-experiment/json/LICENSE",
+	"github.com/gobwas/httphead":         "third_party/licenses/github.com/gobwas/httphead/LICENSE",
+	"github.com/gobwas/pool":             "third_party/licenses/github.com/gobwas/pool/LICENSE",
+	"github.com/gobwas/ws":               "third_party/licenses/github.com/gobwas/ws/LICENSE",
+	"go.starlark.net":                    "third_party/licenses/go.starlark.net/LICENSE",
+	"go.yaml.in/yaml/v3":                 "third_party/licenses/go.yaml.in/yaml/v3/LICENSE",
+	"golang.org/x/sys":                   "third_party/licenses/golang.org/x/sys/LICENSE",
+}
+
+func TestThirdPartyAttributionContract(t *testing.T) {
+	noticesRaw, err := os.ReadFile("THIRD_PARTY_NOTICES.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	notices := string(noticesRaw)
+	for module, license := range thirdPartyDependencies {
+		if !strings.Contains(notices, "`"+module+"`") {
+			t.Errorf("THIRD_PARTY_NOTICES.md does not identify %s", module)
+		}
+		if info, err := os.Lstat(license); err != nil || !info.Mode().IsRegular() {
+			t.Errorf("license for %s is not a regular file: %v", module, err)
+		}
+	}
+	if strings.Contains(notices, "gopkg.in/"+"yaml.v3") {
+		t.Fatal("THIRD_PARTY_NOTICES.md contains the obsolete YAML module identity")
+	}
+	for _, name := range []string{
+		"third_party/licenses/go/LICENSE",
+		"third_party/licenses/go/PATENTS",
+		"third_party/licenses/golang.org/x/sys/PATENTS",
+	} {
+		if info, err := os.Lstat(name); err != nil || !info.Mode().IsRegular() {
+			t.Errorf("Go attribution file %s is not a regular file: %v", name, err)
+		}
+	}
+	rootNotice, err := os.ReadFile("NOTICE")
+	if err != nil {
+		t.Fatal(err)
+	}
+	yamlNotice, err := os.ReadFile("third_party/licenses/go.yaml.in/yaml/v3/NOTICE")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(rootNotice) != string(yamlNotice) || !strings.Contains(string(rootNotice), "Copyright 2011-2016 Canonical Ltd.") {
+		t.Fatal("root NOTICE does not reproduce the reviewed go.yaml.in/yaml/v3 notice")
+	}
+}
+
+func TestThirdPartyAttributionCoversBuiltPrograms(t *testing.T) {
+	command := exec.Command(
+		"go", "list", "-mod=readonly", "-deps",
+		"-f", `{{with .Module}}{{if ne .Path "github.com/nstranquist/pageskein"}}{{.Path}}{{end}}{{end}}`,
+		"./cmd/pageskein", "./cmd/pageskein-release",
+	)
+	command.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOTOOLCHAIN=local")
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("enumerate built-program dependencies: %v: %s", err, output)
+	}
+	observed := make(map[string]bool)
+	for _, module := range strings.Fields(string(output)) {
+		observed[module] = true
+	}
+	var mismatches []string
+	for module := range observed {
+		if _, ok := thirdPartyDependencies[module]; !ok {
+			mismatches = append(mismatches, "missing attribution for "+module)
+		}
+	}
+	for module := range thirdPartyDependencies {
+		if !observed[module] {
+			mismatches = append(mismatches, "attribution is not in the built-program graph: "+module)
+		}
+	}
+	sort.Strings(mismatches)
+	if len(mismatches) > 0 {
+		t.Fatal(strings.Join(mismatches, "\n"))
 	}
 }

@@ -11,8 +11,10 @@ repository, tag, module version, package, or binary release.
 - [ ] Pass the physical Windows and Chrome gate. Wine evidence is not enough.
 - [ ] Replace the sibling ProcessTree directive with a reviewed SemVer
   dependency. Update the release-contract test in the same change.
-- [ ] Review the dependency graph with `go list -m -json all`.
-- [ ] Review `THIRD_PARTY_NOTICES.md` and the managed-browser terms.
+- [ ] Review the dependency graph with `go list -m -json all` and confirm
+  every compiled module is indexed under `third_party/licenses/`.
+- [ ] Review `NOTICE`, `THIRD_PARTY_NOTICES.md`, every bundled license text,
+  and the managed-browser terms.
 - [ ] Confirm that `VERSION`, `package.json`, the CLI version, the intended tag,
   and `CHANGELOG.md` agree.
 - [ ] Verify every entry in `SHA256SUMS` against the final archives.

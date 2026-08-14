@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -32,7 +33,7 @@ func TestExtractionContract(t *testing.T) {
 	if contract.SchemaVersion != 1 || contract.ProductID != "product.pageskein" {
 		t.Fatalf("unexpected extraction contract: %+v", contract)
 	}
-	if contract.Algorithm != "sha256:path-nul-mode-nul-content-nul:v1" {
+	if contract.Algorithm != "sha256:path-nul-portable-mode-nul-content-nul:v2" {
 		t.Fatalf("unsupported extraction digest algorithm %q", contract.Algorithm)
 	}
 	digest, err := sharedSourceDigest(".")
@@ -103,9 +104,34 @@ func sharedSourceDigest(root string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		_, _ = fmt.Fprintf(hash, "%s%c%04o%c", relative, 0, info.Mode().Perm(), 0)
+		mode, err := canonicalSharedFileMode(runtime.GOOS, info.Mode())
+		if err != nil {
+			return "", fmt.Errorf("shared source path %s: %w", relative, err)
+		}
+		_, _ = fmt.Fprintf(hash, "%s%c%04o%c", relative, 0, mode, 0)
 		_, _ = hash.Write(body)
 		_, _ = hash.Write([]byte{0})
 	}
 	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+func canonicalSharedFileMode(goos string, mode fs.FileMode) (fs.FileMode, error) {
+	const canonicalMode fs.FileMode = 0o644
+	if goos != "windows" && mode.Perm() != canonicalMode {
+		return 0, fmt.Errorf("permissions are %04o, want %04o", mode.Perm(), canonicalMode)
+	}
+	return canonicalMode, nil
+}
+
+func TestCanonicalSharedFileModeNormalizesWindowsPermissions(t *testing.T) {
+	got, err := canonicalSharedFileMode("windows", 0o666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != 0o644 {
+		t.Fatalf("canonical Windows mode = %04o, want 0644", got)
+	}
+	if _, err := canonicalSharedFileMode("linux", 0o666); err == nil {
+		t.Fatal("non-Windows permission drift was accepted")
+	}
 }

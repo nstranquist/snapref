@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
   "product_id": "product.pageskein",
-  "algorithm": "sha256:path-nul-mode-nul-content-nul:v1",
-  "source_sha256": "df50bf9474217eba8bd1a66807e9c8b9afc6941d2f94a76a1de2e8dd7afe73c4"
+  "algorithm": "sha256:path-nul-portable-mode-nul-content-nul:v2",
+  "source_sha256": "50fdc913c5e33b7fc3765a7f7d92ac48b530e4fe4421b5bc52b2e19993163af3"
 }

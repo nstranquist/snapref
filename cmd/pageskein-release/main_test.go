@@ -41,6 +41,37 @@ func TestArchiveEntriesPutBinaryFirstAndLegalFilesAfter(t *testing.T) {
 	}
 }
 
+func TestReleaseFilesIncludeRequiredAttribution(t *testing.T) {
+	required := []string{
+		"NOTICE",
+		"THIRD_PARTY_NOTICES.md",
+		"third_party/licenses/go/LICENSE",
+		"third_party/licenses/go/PATENTS",
+		"third_party/licenses/github.com/chromedp/cdproto/LICENSE",
+		"third_party/licenses/github.com/chromedp/chromedp/LICENSE",
+		"third_party/licenses/github.com/chromedp/sysutil/LICENSE",
+		"third_party/licenses/github.com/go-json-experiment/json/LICENSE",
+		"third_party/licenses/github.com/gobwas/httphead/LICENSE",
+		"third_party/licenses/github.com/gobwas/pool/LICENSE",
+		"third_party/licenses/github.com/gobwas/ws/LICENSE",
+		"third_party/licenses/github.com/nstranquist/processtree/LICENSE",
+		"third_party/licenses/go.starlark.net/LICENSE",
+		"third_party/licenses/go.yaml.in/yaml/v3/LICENSE",
+		"third_party/licenses/go.yaml.in/yaml/v3/NOTICE",
+		"third_party/licenses/golang.org/x/sys/LICENSE",
+		"third_party/licenses/golang.org/x/sys/PATENTS",
+	}
+	included := make(map[string]bool, len(releaseFiles))
+	for _, name := range releaseFiles {
+		included[name] = true
+	}
+	for _, name := range required {
+		if !included[name] {
+			t.Errorf("release archive omits required attribution file %s", name)
+		}
+	}
+}
+
 func TestReleaseArtifactsRejectProtectedOutputPaths(t *testing.T) {
 	root := releaseFixture(t)
 	marker := filepath.Join(root, "source-marker")

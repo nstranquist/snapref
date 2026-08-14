@@ -21,6 +21,8 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
   installation already exists. Runtime-kind locks now serialize launch,
   install, repair, and prune, and live owned sessions prevent replacement of
   the runtime version they reference.
+- Extraction digests normalize Windows checkout permissions to the repository's
+  canonical regular-file mode while rejecting permission drift elsewhere.
 
 ### Fixed
 
@@ -33,6 +35,9 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 - The legacy `LocateChrome` compatibility function accepts only an explicit
   external override; it no longer searches `PATH` or personal application
   directories.
+- Standalone missing-runtime diagnostics now prescribe the available
+  `pageskein runtime install` command, and standalone routing text no longer
+  implies that the factory-only browser skill is included.
 
 ### Security
 
@@ -48,6 +53,10 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
   rollback transaction. Build failures leave existing output unchanged.
 - If rollback cannot restore every prior artifact, the recovery staging
   directory is preserved and reported instead of deleted.
+- Release archives now carry the exact `go.yaml.in/yaml/v3` Canonical notice
+  and reviewed license texts for the Go standard library and every external
+  module compiled into the CLI or its release builder. The obsolete legacy
+  YAML identity is rejected by contract.
 
 ### Added
 

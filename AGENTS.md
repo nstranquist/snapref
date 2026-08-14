@@ -16,7 +16,9 @@ go run ./cmd/pageskein self-test
 
 - Daily agent automation **inside nicos-tools**: `ndev browser` (adapter).
 - Engine changes, self-test, SemVer releases: this package.
-- Skill: `.agents/skills/ndev-browser/SKILL.md` § ndev browser vs PageSkein.
+- Inside the nicos-tools factory, follow its repository-owned
+  `.agents/skills/ndev-browser/SKILL.md` routing guide. It is not a standalone
+  PageSkein file.
 
 ## Publication boundary
 
