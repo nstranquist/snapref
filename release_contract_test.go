@@ -78,6 +78,7 @@ func TestReleaseRepositoryContract(t *testing.T) {
 	for _, name := range []string{
 		"AGENTS.md",
 		"CHANGELOG.md",
+		"EXTRACTION.json",
 		"LICENSE",
 		"Makefile",
 		"README.md",

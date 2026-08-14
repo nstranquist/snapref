@@ -102,6 +102,10 @@ managed artifacts.
 Use an operator-controlled output directory. The release transaction does not
 protect against an untrusted process that changes the directory concurrently.
 
+`EXTRACTION.json` pins a digest of every shared source path, file mode, and
+file byte. The extraction test fails when the factory and standalone source
+sets are not synchronized through a reviewed digest update.
+
 The versioned public artifact contracts live in `schemas/telemetry-v2.schema.json`
 and `schemas/script-run-v2.schema.json`. Each release archive includes both
 schemas and `docs/VERSIONING.md`.

@@ -31,6 +31,7 @@ var targets = []target{{OS: "darwin", Arch: "arm64"}, {OS: "linux", Arch: "amd64
 
 var releaseFiles = []string{
 	"CHANGELOG.md",
+	"EXTRACTION.json",
 	"LICENSE",
 	"README.md",
 	"SECURITY.md",

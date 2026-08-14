@@ -49,6 +49,7 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 - Standalone race, Windows cross-compilation, and byte-reproducibility release
   gates.
+- A shared-source extraction digest for the factory and standalone trees.
 - Versioning policy and both public JSON schemas in each binary archive.
 
 ## 0.2.0-rc.1 - 2026-07-16
