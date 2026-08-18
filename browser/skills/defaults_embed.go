@@ -77,7 +77,7 @@ func (r SkillsRoot) seedDefaults(overwrite bool) error {
 }
 
 // SeedDefaultsInto is a convenience that creates a SkillsRoot at path,
-// runs EnsureSeeded, and returns it. Used by `pageskein skills init`
+// runs EnsureSeeded, and returns it. Used by `snapref skills init`
 // and as the public hook for tests that want a populated temp root.
 func SeedDefaultsInto(path string) (SkillsRoot, error) {
 	r := SkillsRoot{Path: path}

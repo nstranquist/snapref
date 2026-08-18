@@ -652,7 +652,7 @@ func RemoteSaveScreenshotWithCaptureAndWait(ctx context.Context, s *Session, url
 		return "", err
 	}
 	if path == "" {
-		path = filepath.Join(os.TempDir(), fmt.Sprintf("pageskein-%s-%d.png", s.Name, time.Now().UnixNano()))
+		path = filepath.Join(os.TempDir(), fmt.Sprintf("snapref-%s-%d.png", s.Name, time.Now().UnixNano()))
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", err
@@ -861,7 +861,7 @@ func RemoteSaveScreenshotCurrentWithCaptureTimeout(s *Session, path string, capt
 		return "", err
 	}
 	if path == "" {
-		path = filepath.Join(os.TempDir(), fmt.Sprintf("pageskein-%s-%d.png", s.Name, time.Now().UnixNano()))
+		path = filepath.Join(os.TempDir(), fmt.Sprintf("snapref-%s-%d.png", s.Name, time.Now().UnixNano()))
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", err

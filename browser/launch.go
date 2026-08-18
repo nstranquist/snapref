@@ -116,7 +116,7 @@ func openLocked(o OpenOptions) (*Session, error) {
 
 	cmd := exec.Command(chrome, args...)
 	cmd.Stdout = io.Discard
-	if os.Getenv("PAGESKEIN_DEBUG") != "" || os.Getenv("NDEV_BROWSER_DEBUG") != "" {
+	if os.Getenv("SNAPREF_DEBUG") != "" || os.Getenv("NDEV_BROWSER_DEBUG") != "" {
 		cmd.Stderr = os.Stderr
 	} else {
 		cmd.Stderr = io.Discard

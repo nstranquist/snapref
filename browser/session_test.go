@@ -21,7 +21,7 @@ import (
 func setBrowserHome(t *testing.T) string {
 	t.Helper()
 	home := t.TempDir()
-	t.Setenv("PAGESKEIN_HOME", home)
+	t.Setenv("SNAPREF_HOME", home)
 	return home
 }
 
@@ -46,13 +46,13 @@ func TestChromeLaunchArgsHeadfulOffscreenIsExplicit(t *testing.T) {
 		HeadfulOffscreen: true,
 		Viewport:         Viewport{Width: 900, Height: 700},
 	}
-	args := chromeLaunchArgs(o, RuntimeChromeForTesting, "/tmp/pageskein-profile")
+	args := chromeLaunchArgs(o, RuntimeChromeForTesting, "/tmp/snapref-profile")
 	if !slices.Contains(args, "--window-position=-32000,-32000") {
 		t.Fatalf("offscreen headful launch missing window position: %v", args)
 	}
 
 	o.HeadfulOffscreen = false
-	args = chromeLaunchArgs(o, RuntimeChromeForTesting, "/tmp/pageskein-profile")
+	args = chromeLaunchArgs(o, RuntimeChromeForTesting, "/tmp/snapref-profile")
 	if slices.Contains(args, "--window-position=-32000,-32000") {
 		t.Fatalf("ordinary headful launch unexpectedly moved offscreen: %v", args)
 	}
@@ -707,10 +707,10 @@ func TestSessionLifecycleLockSerializesAcrossProcesses(t *testing.T) {
 	release := filepath.Join(t.TempDir(), "release")
 	cmd := exec.Command(os.Args[0], "-test.run=^TestSessionLifecycleLockHelperProcess$")
 	cmd.Env = append(os.Environ(),
-		"PAGESKEIN_HOME="+home,
-		"PAGESKEIN_LOCK_HELPER=1",
-		"PAGESKEIN_LOCK_READY="+ready,
-		"PAGESKEIN_LOCK_RELEASE="+release,
+		"SNAPREF_HOME="+home,
+		"SNAPREF_LOCK_HELPER=1",
+		"SNAPREF_LOCK_READY="+ready,
+		"SNAPREF_LOCK_RELEASE="+release,
 	)
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
@@ -753,7 +753,7 @@ func TestSessionLifecycleLockSerializesAcrossProcesses(t *testing.T) {
 }
 
 func TestSessionLifecycleLockHelperProcess(t *testing.T) {
-	if os.Getenv("PAGESKEIN_LOCK_HELPER") != "1" {
+	if os.Getenv("SNAPREF_LOCK_HELPER") != "1" {
 		return
 	}
 	unlock, err := acquireSessionLifecycleLock("cross-process", time.Second)
@@ -761,12 +761,12 @@ func TestSessionLifecycleLockHelperProcess(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer unlock()
-	if err := os.WriteFile(os.Getenv("PAGESKEIN_LOCK_READY"), []byte("ready\n"), 0o600); err != nil {
+	if err := os.WriteFile(os.Getenv("SNAPREF_LOCK_READY"), []byte("ready\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		if _, err := os.Stat(os.Getenv("PAGESKEIN_LOCK_RELEASE")); err == nil {
+		if _, err := os.Stat(os.Getenv("SNAPREF_LOCK_RELEASE")); err == nil {
 			return
 		}
 		if time.Now().After(deadline) {

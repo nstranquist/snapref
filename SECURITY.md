@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-PageSkein is a pre-release local package. Only the current `0.2.x` release
+SnapRef is a pre-release local package. Only the current `0.2.x` release
 candidate receives security fixes. No hosted service or remote browser fleet is
 part of this repository.
 
@@ -38,7 +38,7 @@ will be coordinated after a fix and regression test exist.
 - MCP navigation, drive, caller-selected host reads, and caller-selected host
   writes require separate explicit grants.
 - Snapshot refs are revision-bound and fingerprint-checked. Stale or changed
-  targets fail closed; PageSkein does not semantically relocate them.
+  targets fail closed; SnapRef does not semantically relocate them.
 - Open shadow roots and same-origin frames are supported. Closed shadow roots
   and cross-origin frame contents are deliberately outside the page-script
   inventory boundary.
@@ -48,10 +48,10 @@ will be coordinated after a fix and regression test exist.
   does not change the selected output directory.
 - Release artifact builds disable dependency downloads, workspace overrides,
   user Go settings, and automatic toolchain downloads.
-- Existing output directories retain unrelated entries. PageSkein replaces
+- Existing output directories retain unrelated entries. SnapRef replaces
   only named regular artifacts and restores prior artifacts after a failed
   publication step.
-- If restoration fails, PageSkein preserves the recovery staging directory and
+- If restoration fails, SnapRef preserves the recovery staging directory and
   prints its path. Keep that directory until you recover the prior artifacts.
 - Run release builds in an operator-controlled directory. The file transaction
   is not a boundary against an untrusted concurrent writer.

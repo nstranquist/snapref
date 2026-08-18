@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nstranquist/pageskein/browser"
-	"github.com/nstranquist/pageskein/contract"
-	"github.com/nstranquist/pageskein/script"
+	"github.com/nstranquist/snapref/browser"
+	"github.com/nstranquist/snapref/contract"
+	"github.com/nstranquist/snapref/script"
 )
 
 // mcpProtocolVersion tracks the MCP stdio baseline (matches the gtm server).
@@ -120,7 +120,7 @@ func (s *server) handleRPC(req rpcRequest) (rpcResponse, bool) {
 		base.Result = map[string]any{
 			"protocolVersion": mcpProtocolVersion,
 			"capabilities":    map[string]any{"tools": map[string]any{}},
-			"serverInfo":      map[string]any{"name": "pageskein", "version": browser.BrowserBuildVersion()},
+			"serverInfo":      map[string]any{"name": "snapref", "version": browser.BrowserBuildVersion()},
 		}
 	case "ping":
 		base.Result = map[string]any{}
@@ -140,7 +140,7 @@ func (s *server) handleRPC(req rpcRequest) (rpcResponse, bool) {
 
 func sessionSchema(extra map[string]any, required ...string) map[string]any {
 	props := map[string]any{
-		"session": map[string]any{"type": "string", "description": "Name of an open session (pageskein open <name>)"},
+		"session": map[string]any{"type": "string", "description": "Name of an open session (snapref open <name>)"},
 	}
 	for k, v := range extra {
 		props[k] = v
@@ -154,7 +154,7 @@ func sessionSchema(extra map[string]any, required ...string) map[string]any {
 }
 
 func (s *server) tools() []map[string]any {
-	driveNote := " (actuation — disabled unless PAGESKEIN_MCP_ALLOW_DRIVE=1)"
+	driveNote := " (actuation — disabled unless SNAPREF_MCP_ALLOW_DRIVE=1)"
 	return []map[string]any{
 		{
 			"name":        "browser_list",
@@ -168,8 +168,30 @@ func (s *server) tools() []map[string]any {
 		},
 		{
 			"name":        "browser_screenshot",
-			"description": "Capture the session's current page to a unique managed temp file and return its path (read-only; never inline bytes). A caller-selected path requires PAGESKEIN_MCP_ALLOW_HOST_WRITE=1 / --allow-host-write.",
+			"description": "Capture the session's current page to a unique managed temp file and return its path (read-only; never inline bytes). A caller-selected path requires SNAPREF_MCP_ALLOW_HOST_WRITE=1 / --allow-host-write.",
 			"inputSchema": sessionSchema(map[string]any{"path": map[string]any{"type": "string", "description": "Optional caller-selected output path; disabled unless host-write authority is explicitly enabled"}}),
+		},
+		{
+			"name":        "browser_shot",
+			"description": "Package the session's current page as publish-ready product screenshots (GitHub README / Product Hunt / OG). Writes a directory pack. A caller-selected path requires SNAPREF_MCP_ALLOW_HOST_WRITE=1 / --allow-host-write.",
+			"inputSchema": sessionSchema(map[string]any{
+				"preset":          map[string]any{"type": "string", "description": "github-readme, product-hunt, og, twitter, raw, or all"},
+				"title":           map[string]any{"type": "string"},
+				"caption":         map[string]any{"type": "string"},
+				"theme":           map[string]any{"type": "string", "description": "light or dark"},
+				"include_mobile":  map[string]any{"type": "boolean"},
+				"path":            map[string]any{"type": "string", "description": "Optional output directory; disabled unless host-write authority is explicitly enabled"},
+			}),
+		},
+		{
+			"name":        "browser_record",
+			"description": "Start or stop a session screen recording and package MP4/GIF for GitHub README or Product Hunt. Stop writes a directory pack. A caller-selected path requires SNAPREF_MCP_ALLOW_HOST_WRITE=1 / --allow-host-write.",
+			"inputSchema": sessionSchema(map[string]any{
+				"action": map[string]any{"type": "string", "description": "start or stop"},
+				"preset": map[string]any{"type": "string"},
+				"title":  map[string]any{"type": "string"},
+				"path":   map[string]any{"type": "string"},
+			}, "action"),
 		},
 		{
 			"name":        "browser_navigate",
@@ -229,8 +251,8 @@ func (s *server) tools() []map[string]any {
 		},
 		{
 			"name": "browser_script_run",
-			"description": "Run a browserscript playbook file (.yaml/.json/.star) as ONE unit against an open session — the repeatable-workflow surface. Reading the caller-selected playbook requires PAGESKEIN_MCP_ALLOW_HOST_READ=1 / --allow-host-read. Read-only playbooks then run without drive authority; page actuation and caller-supplied page code require this bridge's actuation gate" + driveNote +
-				". Audited + written to the per-run manifest like `pageskein script run`. Returns {ok,run_id,steps[],outputs}.",
+			"description": "Run a browserscript playbook file (.yaml/.json/.star) as ONE unit against an open session — the repeatable-workflow surface. Reading the caller-selected playbook requires SNAPREF_MCP_ALLOW_HOST_READ=1 / --allow-host-read. Read-only playbooks then run without drive authority; page actuation and caller-supplied page code require this bridge's actuation gate" + driveNote +
+				". Audited + written to the per-run manifest like `snapref script run`. Returns {ok,run_id,steps[],outputs}.",
 			"inputSchema": sessionSchema(map[string]any{
 				"file":      map[string]any{"type": "string", "description": "Path to the playbook (.yaml/.json/.star)"},
 				"vars":      map[string]any{"type": "object", "description": "Parameters (${k} interpolation / params[k]) — values stringified"},
@@ -314,7 +336,7 @@ func (s *server) callTool(params json.RawMessage) (string, bool) {
 
 	if !s.driveAllowed(p.Name, p.Arguments) {
 		s.audit(p.Name, session, false, false, "driving disabled")
-		return p.Name + " is disabled on this bridge. Enable all actuation with PAGESKEIN_MCP_ALLOW_DRIVE=1 / --allow-drive, or this verb only with --allow-tools (PAGESKEIN_MCP_ALLOW_TOOLS).", true
+		return p.Name + " is disabled on this bridge. Enable all actuation with SNAPREF_MCP_ALLOW_DRIVE=1 / --allow-drive, or this verb only with --allow-tools (SNAPREF_MCP_ALLOW_TOOLS).", true
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
@@ -354,7 +376,7 @@ func (s *server) callTool(params json.RawMessage) (string, bool) {
 		requestedPath := strings.TrimSpace(str("path"))
 		if requestedPath != "" && !s.opts.AllowHostWrite {
 			s.audit(p.Name, session, false, false, "host write disabled")
-			return "browser_screenshot path is disabled on this bridge. Omit path for a unique managed temp file, or explicitly enable host writes with PAGESKEIN_MCP_ALLOW_HOST_WRITE=1 / --allow-host-write.", true
+			return "browser_screenshot path is disabled on this bridge. Omit path for a unique managed temp file, or explicitly enable host writes with SNAPREF_MCP_ALLOW_HOST_WRITE=1 / --allow-host-write.", true
 		}
 		path, err := d.Screenshot(ctx, session, requestedPath)
 		if err != nil {
@@ -365,6 +387,10 @@ func (s *server) callTool(params json.RawMessage) (string, bool) {
 			s.audit(p.Name, session, true, true, "path="+requestedPath)
 		}
 		return "screenshot saved: " + path, false
+	case "browser_shot":
+		return s.runProductShot(ctx, session, str("path"), str("preset"), str("title"), str("caption"), str("theme"), boolArg("include_mobile"))
+	case "browser_record":
+		return s.runProductRecord(session, str("action"), str("path"), str("preset"), str("title"))
 	case "browser_navigate":
 		if blocked := s.checkOrigin(p.Name, session, str("url")); blocked != "" {
 			return blocked, true
@@ -438,7 +464,7 @@ func (s *server) runScript(ctx context.Context, args map[string]any) (string, bo
 	session, _ := args["session"].(string)
 	if !s.opts.AllowHostRead {
 		s.audit("browser_script_run", session, false, false, "host read disabled")
-		return "browser_script_run host file reads are disabled on this bridge. Enable explicitly with PAGESKEIN_MCP_ALLOW_HOST_READ=1 / --allow-host-read.", true
+		return "browser_script_run host file reads are disabled on this bridge. Enable explicitly with SNAPREF_MCP_ALLOW_HOST_READ=1 / --allow-host-read.", true
 	}
 	vars := map[string]string{}
 	if m, ok := args["vars"].(map[string]any); ok {
@@ -544,21 +570,21 @@ type scriptPolicyDriver struct {
 
 func (d scriptPolicyDriver) Navigate(ctx context.Context, session, rawURL string, opts ...browser.NavigateOptions) error {
 	if !d.server.originAllowed(rawURL) {
-		return fmt.Errorf("blocked: %s is not in the navigation allowlist (PAGESKEIN_MCP_ALLOW_ORIGINS)", rawURL)
+		return fmt.Errorf("blocked: %s is not in the navigation allowlist (SNAPREF_MCP_ALLOW_ORIGINS)", rawURL)
 	}
 	return d.Driver.Navigate(ctx, session, rawURL, opts...)
 }
 
 func (d scriptPolicyDriver) Fetch(ctx context.Context, session, rawURL string) (string, error) {
 	if !d.server.originAllowed(rawURL) {
-		return "", fmt.Errorf("blocked: %s is not in the navigation allowlist (PAGESKEIN_MCP_ALLOW_ORIGINS)", rawURL)
+		return "", fmt.Errorf("blocked: %s is not in the navigation allowlist (SNAPREF_MCP_ALLOW_ORIGINS)", rawURL)
 	}
 	return d.Driver.Fetch(ctx, session, rawURL)
 }
 
 func (d scriptPolicyDriver) Console(ctx context.Context, session string, opts browser.ConsoleCaptureOptions) ([]browser.ConsoleEntry, error) {
 	if opts.Navigate != "" && !d.server.originAllowed(opts.Navigate) {
-		return nil, fmt.Errorf("blocked: %s is not in the navigation allowlist (PAGESKEIN_MCP_ALLOW_ORIGINS)", opts.Navigate)
+		return nil, fmt.Errorf("blocked: %s is not in the navigation allowlist (SNAPREF_MCP_ALLOW_ORIGINS)", opts.Navigate)
 	}
 	return d.Driver.Console(ctx, session, opts)
 }
@@ -697,7 +723,7 @@ func (s *server) checkOrigin(tool, session, rawurl string) string {
 		return ""
 	}
 	s.audit(tool, session, true, false, "origin not allowlisted: "+rawurl)
-	return "blocked: " + rawurl + " is not in the navigation allowlist (PAGESKEIN_MCP_ALLOW_ORIGINS)"
+	return "blocked: " + rawurl + " is not in the navigation allowlist (SNAPREF_MCP_ALLOW_ORIGINS)"
 }
 
 // originAllowed reports whether rawurl's host matches the configured allowlist.

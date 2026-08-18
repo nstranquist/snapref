@@ -1,8 +1,8 @@
-// Package browserscript is the engine behind `pageskein script`: it runs a
+// Package browserscript is the engine behind `snapref script`: it runs a
 // Plan — an ordered sequence of browser verbs — as ONE unit against an
 // already-open session, streaming a per-step JSON verdict for immediate
 // feedback and (via the cmd layer) writing the same telemetry/audit we keep for
-// ad-hoc `pageskein exec`.
+// ad-hoc `snapref exec`.
 //
 // The engine is the substrate for all three authoring surfaces: the Go SDK
 // (build a Plan directly), the YAML/JSON loader, and the Starlark loader. Each
@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nstranquist/pageskein/contract"
+	"github.com/nstranquist/snapref/contract"
 )
 
 // Verb is the closed instruction set. It is 1:1 with browser.Driver plus the
@@ -102,7 +102,7 @@ const (
 )
 
 // ScreenshotMode makes the intended evidence shape explicit. The empty value
-// preserves PageSkein's historical full-page default.
+// preserves SnapRef's historical full-page default.
 type ScreenshotMode string
 
 const (

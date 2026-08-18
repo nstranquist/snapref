@@ -1,13 +1,13 @@
 # Browser workflow benchmark
 
-Run from the PageSkein module:
+Run from the SnapRef module:
 
 ```sh
-go run ./cmd/pageskein-benchmark --out benchmark/latest.json
+go run ./cmd/snapref-benchmark --out benchmark/latest.json
 ```
 
 The harness uses one local fixture containing a password value and a mutable
-button. It measures PageSkein, the current `agent-browser` npx package, and the
+button. It measures SnapRef, the current `agent-browser` npx package, and the
 current `@playwright/mcp` npx package on:
 
 - snapshot payload bytes and an explicit `ceil(bytes/4)` token approximation;
@@ -22,6 +22,6 @@ does not claim that an external wrapper cannot add logging. Likewise, the ref
 test measures fail-closed behavior, not general locator quality.
 
 This live comparison is intentionally outside `make verify`: it downloads
-current competitor packages and is therefore non-deterministic. The PageSkein
+current competitor packages and is therefore non-deterministic. The SnapRef
 release gate uses its own pinned tests; the comparison is a dated product
 receipt.

@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/nstranquist/pageskein/browser"
+	"github.com/nstranquist/snapref/browser"
 )
 
 // Result is the per-step verdict: the streamed immediate-feedback unit AND an
@@ -33,7 +33,7 @@ type Result struct {
 }
 
 // RunReport is the full outcome of a Plan run. The cmd layer persists it as the
-// per-run manifest under ~/.pageskein/browser/scripts/<run-id>.json.
+// per-run manifest under ~/.snapref/browser/scripts/<run-id>.json.
 type RunReport struct {
 	SchemaVersion int               `json:"schema_version,omitempty"`
 	BuildVersion  string            `json:"build_version,omitempty"`

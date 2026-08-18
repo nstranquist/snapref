@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nstranquist/pageskein/browser"
+	"github.com/nstranquist/snapref/browser"
 )
 
 func TestFileTelemetryWritesEventsAndManifest(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("PAGESKEIN_HOME", home)
+	t.Setenv("SNAPREF_HOME", home)
 
 	f := newFake()
 	f.text["h1"] = "Hi"
@@ -78,7 +78,7 @@ func TestFileTelemetryWritesEventsAndManifest(t *testing.T) {
 
 func TestManifestRedactsCapturedAndAssertValues(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("PAGESKEIN_HOME", home)
+	t.Setenv("SNAPREF_HOME", home)
 
 	f := newFake()
 	f.text["#tok"] = "supersecret-abc123"

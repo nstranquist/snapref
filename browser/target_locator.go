@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const nestedTargetPrefix = "pageskein-locator:v1:"
+const nestedTargetPrefix = "snapref-locator:v1:"
 
 // TargetLocator is the typed internal form of a selector. Context is empty for
 // the top-level document and contains ordered frame/shadow boundaries for a

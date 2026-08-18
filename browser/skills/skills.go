@@ -1,11 +1,11 @@
 // Package skills provides a runtime-loaded browser-skill harness for
-// `pageskein`. Skills live on disk under ~/.pageskein/skills/
+// `snapref`. Skills live on disk under ~/.snapref/skills/
 // (see SkillsRoot) so agents and humans can edit selectors, extractors,
 // and hint docs without rebuilding the binary.
 //
 // Layout (mirrors browser-use/browser-harness's agent-workspace/domain-skills/):
 //
-//	~/.pageskein/skills/
+//	~/.snapref/skills/
 //	├── _helpers/                 # shared JS helpers (future)
 //	└── <domain>/
 //	    ├── README.md             # agent-readable hints (selectors, traps)
@@ -115,13 +115,13 @@ type SkillsRoot struct {
 	Path string
 }
 
-// DefaultRoot resolves ~/.pageskein/skills/, ensures it exists, and
+// DefaultRoot resolves ~/.snapref/skills/, ensures it exists, and
 // seeds any missing files from the embedded defaults tree. Idempotent;
 // never overwrites user edits.
 //
-// Override via $PAGESKEIN_SKILLS for tests / split installs.
+// Override via $SNAPREF_SKILLS for tests / split installs.
 func DefaultRoot() (SkillsRoot, error) {
-	path := strings.TrimSpace(os.Getenv("PAGESKEIN_SKILLS"))
+	path := strings.TrimSpace(os.Getenv("SNAPREF_SKILLS"))
 	if path == "" {
 		path = strings.TrimSpace(os.Getenv("NDEV_BROWSER_SKILLS"))
 	}
@@ -130,7 +130,7 @@ func DefaultRoot() (SkillsRoot, error) {
 		if err != nil {
 			return SkillsRoot{}, fmt.Errorf("resolve home: %w", err)
 		}
-		path = filepath.Join(home, ".pageskein", "skills")
+		path = filepath.Join(home, ".snapref", "skills")
 	}
 	r := SkillsRoot{Path: path}
 	if err := r.EnsureSeeded(); err != nil {

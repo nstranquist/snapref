@@ -5,14 +5,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/nstranquist/pageskein/browser"
+	"github.com/nstranquist/snapref/browser"
 )
 
-// FileTelemetry persists a run to the same surfaces ad-hoc `pageskein exec`
+// FileTelemetry persists a run to the same surfaces ad-hoc `snapref exec`
 // uses: per-step rows in the command event log (events.jsonl, kinds
 // browser.script / browser.step) so the observe stream and the Agent browser
 // viewer pick script runs up for free, plus a per-run manifest under
-// ~/.pageskein/browser/scripts/<run-id>.json.
+// ~/.snapref/browser/scripts/<run-id>.json.
 //
 // It is best-effort: a telemetry write error never aborts a run (the step
 // already happened). Errors are retained on LastErr for callers that want to

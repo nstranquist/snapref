@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nstranquist/pageskein/contract"
+	"github.com/nstranquist/snapref/contract"
 )
 
 func TestLoadYAMLEqualsJSON(t *testing.T) {

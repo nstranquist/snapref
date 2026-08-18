@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nstranquist/pageskein/browser"
+	"github.com/nstranquist/snapref/browser"
 )
 
 // RuntimeConsumerSmokeReceipt is the typed result of the real managed-runtime
@@ -54,7 +54,7 @@ func RunRuntimeConsumerSmoke(ctx context.Context, open func(browser.OpenOptions)
 
 	plan := Plan{Name: "runtime-consumer-smoke", Session: session, Steps: []Step{
 		{Verb: VerbViewport, Width: 800, Height: 600},
-		{Verb: VerbNavigate, URL: "data:text/html,<style>body{margin:0}.tall{height:2400px}</style><h1 id=t>Hello PageSkein</h1><p class=s>Live</p><div class=tall></div>"},
+		{Verb: VerbNavigate, URL: "data:text/html,<style>body{margin:0}.tall{height:2400px}</style><h1 id=t>Hello SnapRef</h1><p class=s>Live</p><div class=tall></div>"},
 		{Verb: VerbWait, Selector: "h1"},
 		{Verb: VerbText, Selector: "#t", Capture: "heading"},
 		{Verb: VerbAssertText, Selector: ".s", Assert: &Assertion{Equals: "Live"}},
@@ -75,8 +75,8 @@ func RunRuntimeConsumerSmoke(ctx context.Context, open func(browser.OpenOptions)
 		return RuntimeConsumerSmokeReceipt{}, fmt.Errorf("script report ok=%t steps=%d, want ok with %d steps", report.OK, len(report.Steps), len(plan.Steps))
 	}
 	heading, _ := report.Steps[3].Captured["heading"].(string)
-	if heading != "Hello PageSkein" {
-		return RuntimeConsumerSmokeReceipt{}, fmt.Errorf("captured heading %q, want Hello PageSkein", heading)
+	if heading != "Hello SnapRef" {
+		return RuntimeConsumerSmokeReceipt{}, fmt.Errorf("captured heading %q, want Hello SnapRef", heading)
 	}
 	viewport, err := runtimeConsumerScreenshotDimensions(report.Steps[6].Screenshot)
 	if err != nil {

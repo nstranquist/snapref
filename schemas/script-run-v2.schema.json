@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:pageskein:schema:script-run:v2",
-  "title": "PageSkein script run manifest v2",
+  "$id": "urn:snapref:schema:script-run:v2",
+  "title": "SnapRef script run manifest v2",
   "type": "object",
   "required": ["schema_version", "build_version", "run_id", "plan", "plan_hash", "source", "session", "started_at", "ended_at", "ok", "steps"],
   "properties": {

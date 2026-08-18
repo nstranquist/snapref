@@ -33,7 +33,7 @@ func TestClassifyErrorClosedClasses(t *testing.T) {
 }
 
 func TestAppendEventAddsTelemetrySchemaBuildOperationAndErrorClass(t *testing.T) {
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
+	t.Setenv("SNAPREF_HOME", t.TempDir())
 	if err := AppendEvent(ObserverEvent{
 		Kind: KindCommand, Session: "s", Error: "snapshot ref stale: stale snapshot ref",
 		Command: &ObserverCommand{Command: "exec.click", OK: false, ExitCode: 1},

@@ -10,10 +10,10 @@ import (
 
 // LinkedInResult is the typed envelope for a LinkedIn profile or
 // company page. The stable typed field set lets downstream lead-capture
-// ingestion consume PageSkein output without depending on page-local JS shape.
+// ingestion consume SnapRef output without depending on page-local JS shape.
 //
 // Person/Company are populated by running the corresponding JS
-// extractor under ~/.pageskein/skills/linkedin/. URL/Type/Identifier
+// extractor under ~/.snapref/skills/linkedin/. URL/Type/Identifier
 // are filled by ExtractLinkedIn from the page URL — not the JS — so
 // routing logic stays Go-side.
 type LinkedInResult struct {

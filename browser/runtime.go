@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-// RuntimeKind identifies the executable class beneath PageSkein's CDP layer.
+// RuntimeKind identifies the executable class beneath SnapRef's CDP layer.
 // RuntimeAuto is request-only; successful resolutions always return a concrete
 // managed or explicitly external kind.
 type RuntimeKind string
@@ -393,7 +393,7 @@ func ResolveRuntime(request RuntimeRequest) (ResolvedRuntime, error) {
 	}
 	if kind == RuntimeExternal {
 		if externalPath == "" {
-			return ResolvedRuntime{}, errors.New("external browser runtime requires PAGESKEIN_CHROME, NDEV_BROWSER_CHROME, or an explicit browser path")
+			return ResolvedRuntime{}, errors.New("external browser runtime requires SNAPREF_CHROME, NDEV_BROWSER_CHROME, or an explicit browser path")
 		}
 		return resolveExternalRuntime(externalPath, externalSource, request)
 	}
@@ -475,7 +475,7 @@ func missingRuntimeError(kind RuntimeKind) error {
 }
 
 func runtimeInstallRemediation(kind RuntimeKind) string {
-	return fmt.Sprintf("pageskein runtime install --runtime %s --channel stable", kind)
+	return fmt.Sprintf("snapref runtime install --runtime %s --channel stable", kind)
 }
 
 func verifyInstalledRuntime(kind RuntimeKind, platform, version string) (ResolvedRuntime, RuntimeManifest, error) {

@@ -9,5 +9,5 @@ back to URL path for handle.
 Instagram aggressively gates desktop browsers behind a login modal.
 Meta tags are still served pre-modal, so this extractor mostly works
 without auth — but the `og:description` text is missing for some
-content types. Verify with `pageskein drift` or `ndev browser drift`
+content types. Verify with `snapref drift` or `ndev browser drift`
 before scaling a flow.

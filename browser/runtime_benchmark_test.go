@@ -136,8 +136,8 @@ func TestRuntimeBenchmarkFocusSeparatesTargetFromComparator(t *testing.T) {
 }
 
 func TestRuntimeBenchmarkManagedSampleIntegration(t *testing.T) {
-	if os.Getenv("PAGESKEIN_RUNTIME_INTEGRATION") != "1" {
-		t.Skip("set PAGESKEIN_RUNTIME_INTEGRATION=1 to exercise installed managed runtimes")
+	if os.Getenv("SNAPREF_RUNTIME_INTEGRATION") != "1" {
+		t.Skip("set SNAPREF_RUNTIME_INTEGRATION=1 to exercise installed managed runtimes")
 	}
 	server := runtimeBenchmarkServer()
 	defer server.Close()

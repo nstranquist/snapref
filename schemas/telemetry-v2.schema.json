@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:pageskein:schema:telemetry:v2",
-  "title": "PageSkein observer event v2",
+  "$id": "urn:snapref:schema:telemetry:v2",
+  "title": "SnapRef observer event v2",
   "type": "object",
   "required": ["schema_version", "build_version", "timestamp", "kind"],
   "properties": {

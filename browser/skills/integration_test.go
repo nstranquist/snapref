@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nstranquist/pageskein/browser"
+	"github.com/nstranquist/snapref/browser"
 )
 
 // TestCheckSelectorsAgainstFixtureHTML proves the selector probe JS

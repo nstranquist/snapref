@@ -35,6 +35,23 @@ type InspectOptions struct {
 	ThumbnailPath string
 }
 
+// CurrentPageInfo returns the first page target's URL and title, if any.
+func CurrentPageInfo(s *Session) (pageURL, title string) {
+	if s == nil {
+		return "", ""
+	}
+	entries, ok := fetchTargetList(s.Port)
+	if !ok {
+		return "", ""
+	}
+	for _, entry := range entries {
+		if entry.Type == "page" {
+			return entry.URL, entry.Title
+		}
+	}
+	return "", ""
+}
+
 // InspectReport is the full read-only observer view for one session.
 type InspectReport struct {
 	OK        bool               `json:"ok"`
@@ -204,20 +221,15 @@ func AppendEvent(event ObserverEvent) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	body, err := json.Marshal(event)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	enc := json.NewEncoder(f)
-	return enc.Encode(event)
+	return appendAndRotateJSONL(path, body, 0o600)
 }
 
 // ScriptRunsDir is the directory holding per-run browserscript manifests
-// (~/.pageskein/browser/scripts).
+// (~/.snapref/browser/scripts).
 func ScriptRunsDir() (string, error) {
 	root, err := SessionRoot()
 	if err != nil {
@@ -251,7 +263,20 @@ func CommandEventLogSize() (int64, error) {
 	return info.Size(), nil
 }
 
-// ReadCommandEventsAfter reads appended command events after byte offset.
+// liveCommandLogCursor is the byte size of the live events.jsonl file.
+// Observe starts here so a rotate (empty hot file) does not replay gzip history.
+func liveCommandLogCursor(path string) int64 {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	return info.Size()
+}
+
+// ReadCommandEventsAfter tails the live command log after byte offset.
+// Rotated gzip siblings are not part of the tail. ndev browser observe starts
+// at CommandEventLogSize() (end of live); after a rotate that size is 0 and
+// this must return 0 new events, not the archived family.
 func ReadCommandEventsAfter(offset int64) ([]ObserverEvent, int64, error) {
 	path, err := CommandEventLogPath()
 	if err != nil {
@@ -271,6 +296,11 @@ func ReadCommandEventsAfter(offset int64) ([]ObserverEvent, int64, error) {
 		return nil, offset, err
 	}
 	if offset > info.Size() {
+		// Live file shrank (rotate). Resume at the start of the new live
+		// window — never family-replay archives from a tail cursor.
+		offset = 0
+	}
+	if offset < 0 {
 		offset = 0
 	}
 	if _, err := f.Seek(offset, io.SeekStart); err != nil {
@@ -299,6 +329,28 @@ func ReadCommandEventsAfter(offset int64) ([]ObserverEvent, int64, error) {
 		return events, next, err
 	}
 	return events, next, nil
+}
+
+// ReadCommandEventFamily replays live + gzip rotations once. The returned
+// cursor is the live file size so ReadCommandEventsAfter(cursor) (and
+// observe after --replay-commands) does not re-emit those family rows.
+func ReadCommandEventFamily() ([]ObserverEvent, int64, error) {
+	path, err := CommandEventLogPath()
+	if err != nil {
+		return nil, 0, err
+	}
+	var events []ObserverEvent
+	if err := forEachJSONLFamilyLine(path, func(raw []byte) error {
+		var event ObserverEvent
+		if err := json.Unmarshal(raw, &event); err != nil {
+			return fmt.Errorf("parse command event: %w", err)
+		}
+		events = append(events, event)
+		return nil
+	}); err != nil {
+		return nil, 0, err
+	}
+	return events, liveCommandLogCursor(path), nil
 }
 
 // ObserveSnapshot emits current command, session, and target events. It is

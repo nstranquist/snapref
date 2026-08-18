@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -568,15 +567,7 @@ func AppendSnapshotEvent(session string, snap *PageSnapshot) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return json.NewEncoder(f).Encode(SnapshotEvent{
+	body, err := json.Marshal(SnapshotEvent{
 		SchemaVersion: BrowserTelemetrySchemaVersion,
 		BuildVersion:  BrowserBuildVersion(),
 		Timestamp:     time.Now().UTC(),
@@ -590,4 +581,8 @@ func AppendSnapshotEvent(session string, snap *PageSnapshot) error {
 		Attempts:      snap.Attempts,
 		ReadyBy:       snap.ReadyBy,
 	})
+	if err != nil {
+		return err
+	}
+	return appendAndRotateJSONL(path, body, 0o600)
 }

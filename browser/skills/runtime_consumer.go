@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/nstranquist/pageskein/browser"
+	"github.com/nstranquist/snapref/browser"
 )
 
 // RuntimeConsumerSmokeReceipt is the typed result of the persistent-session
@@ -56,7 +56,7 @@ func RunRuntimeConsumerSmoke(ctx context.Context, open func(browser.OpenOptions)
 		return RuntimeConsumerSmokeReceipt{}, fmt.Errorf("managed session opener returned no lifecycle policy")
 	}
 
-	rootPath, err := os.MkdirTemp("", "pageskein-runtime-consumer-skills-")
+	rootPath, err := os.MkdirTemp("", "snapref-runtime-consumer-skills-")
 	if err != nil {
 		return RuntimeConsumerSmokeReceipt{}, fmt.Errorf("create temporary skills root: %w", err)
 	}

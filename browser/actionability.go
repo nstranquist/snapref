@@ -149,7 +149,7 @@ func selectorActionabilityJS(selector string) string {
     finish({ok: false, precondition: "selector_valid", reason: String(err && err.message || err)});
     return;
   }
-  window.__pageskeinActionabilityProbe(el, finish);
+  window.__snaprefActionabilityProbe(el, finish);
 }))()`, expression)
 }
 
@@ -161,14 +161,14 @@ func focusedActionabilityJS() string {
     requestAnimationFrame(() => requestAnimationFrame(() => finish({ok: true, precondition: "ready", reason: "no focused element"})));
     return;
   }
-  window.__pageskeinActionabilityProbe(el, finish);
+  window.__snaprefActionabilityProbe(el, finish);
 }))()`
 }
 
 func actionabilityBootstrapJS() string {
 	return `(() => {
-  if (window.__pageskeinActionabilityProbe) return true;
-  window.__pageskeinActionabilityProbe = (el, finish) => {
+  if (window.__snaprefActionabilityProbe) return true;
+  window.__snaprefActionabilityProbe = (el, finish) => {
     const describe = node => {
       if (!node) return "none";
       const id = node.id ? "#" + node.id : "";

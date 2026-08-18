@@ -14,7 +14,7 @@ func TestLocateChromeRespectsEnvOverride(t *testing.T) {
 	defer os.Remove(tmp.Name())
 	tmp.Close()
 
-	t.Setenv("PAGESKEIN_CHROME", tmp.Name())
+	t.Setenv("SNAPREF_CHROME", tmp.Name())
 	got, err := LocateChrome()
 	if err != nil {
 		t.Fatalf("LocateChrome: %v", err)
@@ -25,7 +25,7 @@ func TestLocateChromeRespectsEnvOverride(t *testing.T) {
 }
 
 func TestLocateChromeMissingEnvOverrideErrors(t *testing.T) {
-	t.Setenv("PAGESKEIN_CHROME", "/no/such/path/chrome-xyz")
+	t.Setenv("SNAPREF_CHROME", "/no/such/path/chrome-xyz")
 	_, err := LocateChrome()
 	if err == nil {
 		t.Fatal("expected error for missing env override path")
@@ -33,18 +33,18 @@ func TestLocateChromeMissingEnvOverrideErrors(t *testing.T) {
 }
 
 func TestDoctorReturnsErrorWhenChromeMissing(t *testing.T) {
-	t.Setenv("PAGESKEIN_CHROME", "/no/such/path/chrome-xyz")
+	t.Setenv("SNAPREF_CHROME", "/no/such/path/chrome-xyz")
 	res := Doctor()
 	if res.Error == "" {
 		t.Fatalf("expected Error to be populated, got: %+v", res)
 	}
-	if res.Source != "env:PAGESKEIN_CHROME" {
+	if res.Source != "env:SNAPREF_CHROME" {
 		t.Errorf("Source = %q, want env tag", res.Source)
 	}
 }
 
 func TestLocateChromeRetainsNDevAdapterAlias(t *testing.T) {
-	t.Setenv("PAGESKEIN_CHROME", "")
+	t.Setenv("SNAPREF_CHROME", "")
 	t.Setenv("NDEV_BROWSER_CHROME", "/no/such/legacy-chrome")
 	_, err := LocateChrome()
 	if err == nil || Doctor().Source != "env:NDEV_BROWSER_CHROME" {
@@ -69,7 +69,7 @@ func TestChromeSupportsLoadExtension(t *testing.T) {
 }
 
 func TestLocateChromeWithoutExplicitOverrideFailsClosed(t *testing.T) {
-	t.Setenv("PAGESKEIN_CHROME", "")
+	t.Setenv("SNAPREF_CHROME", "")
 	t.Setenv("NDEV_BROWSER_CHROME", "")
 	if _, err := LocateChrome(); !errors.Is(err, ErrNoChrome) {
 		t.Fatalf("LocateChrome without override error = %v, want ErrNoChrome", err)

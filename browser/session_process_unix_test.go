@@ -21,8 +21,8 @@ func TestGracefulStopTerminatesDedicatedBrowserProcessTree(t *testing.T) {
 	childPIDFile := filepath.Join(t.TempDir(), "child.pid")
 	cmd := exec.Command(os.Args[0], "-test.run=^TestBrowserProcessTreeHelper$", "--", "--user-data-dir="+profile)
 	cmd.Env = append(os.Environ(),
-		"PAGESKEIN_TREE_PARENT=1",
-		"PAGESKEIN_TREE_CHILD_PID_FILE="+childPIDFile,
+		"SNAPREF_TREE_PARENT=1",
+		"SNAPREF_TREE_CHILD_PID_FILE="+childPIDFile,
 	)
 	ConfigureDetachedProcess(cmd)
 	if err := cmd.Start(); err != nil {
@@ -73,15 +73,15 @@ func TestGracefulStopTerminatesDedicatedBrowserProcessTree(t *testing.T) {
 }
 
 func TestBrowserProcessTreeHelper(t *testing.T) {
-	if os.Getenv("PAGESKEIN_TREE_PARENT") != "1" {
+	if os.Getenv("SNAPREF_TREE_PARENT") != "1" {
 		return
 	}
 	child := exec.Command(os.Args[0], "-test.run=^TestBrowserProcessTreeChild$")
-	child.Env = append(os.Environ(), "PAGESKEIN_TREE_CHILD=1", "PAGESKEIN_TREE_PARENT=")
+	child.Env = append(os.Environ(), "SNAPREF_TREE_CHILD=1", "SNAPREF_TREE_PARENT=")
 	if err := child.Start(); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(os.Getenv("PAGESKEIN_TREE_CHILD_PID_FILE"), []byte(strconv.Itoa(child.Process.Pid)), 0o600); err != nil {
+	if err := os.WriteFile(os.Getenv("SNAPREF_TREE_CHILD_PID_FILE"), []byte(strconv.Itoa(child.Process.Pid)), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	for {
@@ -90,7 +90,7 @@ func TestBrowserProcessTreeHelper(t *testing.T) {
 }
 
 func TestBrowserProcessTreeChild(t *testing.T) {
-	if os.Getenv("PAGESKEIN_TREE_CHILD") != "1" {
+	if os.Getenv("SNAPREF_TREE_CHILD") != "1" {
 		return
 	}
 	for {

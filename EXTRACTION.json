@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "product_id": "product.pageskein",
+  "product_id": "product.snapref",
   "algorithm": "sha256:path-nul-portable-mode-nul-content-nul:v2",
-  "source_sha256": "50fdc913c5e33b7fc3765a7f7d92ac48b530e4fe4421b5bc52b2e19993163af3"
+  "source_sha256": "d95eed5e809b94783de78abe5d27ce3099fb91d0b5ca2bae2e98863338c6835e"
 }

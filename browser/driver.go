@@ -58,7 +58,7 @@ type NavigateOptions struct {
 // browserscript runner) are unit-testable with a fake, without a real browser.
 //
 // A Driver performs zero launching: the operator opens sessions with
-// `pageskein open`; callers only drive existing ones.
+// `snapref open`; callers only drive existing ones.
 type Driver interface {
 	List() ([]SessionInfo, error)
 	Navigate(ctx context.Context, session, url string, opts ...NavigateOptions) error
@@ -116,7 +116,7 @@ func (remoteDriver) session(name string) (*Session, error) {
 	}
 	s, err := LoadSession(name)
 	if err != nil {
-		return nil, fmt.Errorf("no such session %q (open one with `pageskein open %s`)", name, name)
+		return nil, fmt.Errorf("no such session %q (open one with `snapref open %s`)", name, name)
 	}
 	if !s.IsAlive() {
 		return nil, fmt.Errorf("session %q is not running", name)

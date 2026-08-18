@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nstranquist/pageskein/browser"
-	"github.com/nstranquist/pageskein/contract"
+	"github.com/nstranquist/snapref/browser"
+	"github.com/nstranquist/snapref/contract"
 )
 
 type fakeDriver struct {
@@ -268,6 +268,41 @@ func TestScreenshotCallerPathRunsWithHostWriteAuthority(t *testing.T) {
 	}
 }
 
+func TestProductShotCallerPathRequiresHostWriteAuthority(t *testing.T) {
+	var audit bytes.Buffer
+	s := newTestServer(&fakeDriver{}, false, &audit)
+	out, isErr := call(s, "browser_shot", map[string]any{"session": "a", "path": "/tmp/shot-pack"})
+	if !isErr || !strings.Contains(out, "host writes") {
+		t.Fatalf("caller path should be refused, got %q isErr=%v", out, isErr)
+	}
+	if !strings.Contains(audit.String(), "host write disabled") {
+		t.Fatalf("refused host write was not audited: %s", audit.String())
+	}
+}
+
+func TestProductShotOmittingPathIsNotAHostWriteRefusal(t *testing.T) {
+	s := newTestServer(&fakeDriver{}, false, nil)
+	out, isErr := call(s, "browser_shot", map[string]any{"session": "missing"})
+	if !isErr {
+		t.Fatal("expected session load to fail")
+	}
+	if strings.Contains(out, "host writes") {
+		t.Fatalf("managed temp path should not hit the host-write gate: %q", out)
+	}
+}
+
+func TestProductRecordStopCallerPathRequiresHostWriteAuthority(t *testing.T) {
+	var audit bytes.Buffer
+	s := newTestServer(&fakeDriver{}, false, &audit)
+	out, isErr := call(s, "browser_record", map[string]any{"session": "a", "action": "stop", "path": "/tmp/rec-pack"})
+	if !isErr || !strings.Contains(out, "host writes") {
+		t.Fatalf("caller path should be refused, got %q isErr=%v", out, isErr)
+	}
+	if !strings.Contains(audit.String(), "host write disabled") {
+		t.Fatalf("refused host write was not audited: %s", audit.String())
+	}
+}
+
 func TestConsoleIsGatedAndDrivesWhenAllowed(t *testing.T) {
 	// Gated off by default.
 	fd := &fakeDriver{}
@@ -511,7 +546,7 @@ func TestDriveErrorIsAudited(t *testing.T) {
 
 func writePlaybook(t *testing.T, body string) string {
 	t.Helper()
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
+	t.Setenv("SNAPREF_HOME", t.TempDir())
 	path := filepath.Join(t.TempDir(), "flow.yaml")
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		t.Fatal(err)

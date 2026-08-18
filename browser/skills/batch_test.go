@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nstranquist/pageskein/browser"
+	"github.com/nstranquist/snapref/browser"
 )
 
 // TestBatchAcrossDomainsViaSession proves the slice C → D handoff: one
 // persistent SessionPage drives multiple fixture pages, each routed to
 // the right skill, with all outputs assembled. This is the unit-level
-// equivalent of the `pageskein drift-batch` CLI smoke.
+// equivalent of the `snapref drift-batch` CLI smoke.
 func TestBatchAcrossDomainsViaSession(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test; -short")
@@ -43,7 +43,7 @@ func TestBatchAcrossDomainsViaSession(t *testing.T) {
 }
 
 func TestSessionPageRenewsManagedIdleLease(t *testing.T) {
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
+	t.Setenv("SNAPREF_HOME", t.TempDir())
 	firstActivity := time.Now().UTC().Add(-time.Minute)
 	sess := &browser.Session{
 		Name:           "leased-batch",

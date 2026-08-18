@@ -6,13 +6,13 @@ and Ashby hosted boards.
 Run:
 
 ```sh
-pageskein job-posting <url> --json
+snapref job-posting <url> --json
 ndev browser job-posting <url> --json
 ndev browser job-posting <url> --jobkit-apply
 ```
 
 The extractor returns title, company, location, apply URL, and readable
-description text. Standalone PageSkein emits the typed extraction contract;
+description text. Standalone SnapRef emits the typed extraction contract;
 the `ndev` adapter can hand it to JobKit with `--jobkit-apply`.
 
 Known traps:

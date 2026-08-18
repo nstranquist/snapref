@@ -133,7 +133,7 @@ func sessionSignalGracefulStop(session *Session, grace time.Duration) error {
 	target := session.PID
 	stopped := func() bool { return processStoppedOrZombie(session.PID) }
 	if pgid, pgidErr := syscall.Getpgid(session.PID); pgidErr == nil && pgid == session.PID {
-		// PageSkein launches Chromium in a dedicated session/process group. Signal
+		// SnapRef launches Chromium in a dedicated session/process group. Signal
 		// the whole tree so renderer and GPU children cannot outlive the browser.
 		target = -pgid
 		stopped = func() bool { return processGroupStoppedOrZombie(pgid) }

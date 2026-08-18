@@ -6,7 +6,7 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"github.com/nstranquist/pageskein/contract"
+	"github.com/nstranquist/snapref/contract"
 )
 
 const BrowserTelemetrySchemaVersion = 2

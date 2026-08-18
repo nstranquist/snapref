@@ -25,7 +25,7 @@ func TestRuntimeAcceptanceBuildIdentityIncludesExecutableDigest(t *testing.T) {
 	}
 }
 
-const runtimeTestBuildVersion = "pageskein-test-build"
+const runtimeTestBuildVersion = "snapref-test-build"
 
 func passingRuntimeConsumerEvidence(t *testing.T, platform, shellVersion, cftVersion string) *RuntimeConsumerEvidence {
 	t.Helper()
@@ -38,7 +38,7 @@ func passingRuntimeConsumerEvidence(t *testing.T, platform, shellVersion, cftVer
 			SchemaVersion: runtimeConsumerEvidenceSchemaVersion, PolicyVersion: runtimeAcceptancePolicyVersion,
 			Surface: surface, Status: RuntimeConsumerStatusPass, Platform: platform,
 			HeadlessShellVersion: shellVersion, ChromeForTestingVersion: cftVersion,
-			PageSkeinBuildVersion: runtimeTestBuildVersion, StartedAt: now.Add(-time.Second), FinishedAt: now,
+			SnapRefBuildVersion: runtimeTestBuildVersion, StartedAt: now.Add(-time.Second), FinishedAt: now,
 			Command: []string{"test", string(surface)}, ExitCode: 0, Output: "ok",
 		}
 		if err := writeJSONAtomic(receiptPath, receipt, 0o600); err != nil {
@@ -56,7 +56,7 @@ func passingRuntimeConsumerEvidence(t *testing.T, platform, shellVersion, cftVer
 		SchemaVersion: runtimeConsumerEvidenceSchemaVersion,
 		PolicyVersion: runtimeAcceptancePolicyVersion,
 		Platform:      platform, HeadlessShellVersion: shellVersion, ChromeForTestingVersion: cftVersion,
-		PageSkeinBuildVersion: runtimeTestBuildVersion,
+		SnapRefBuildVersion: runtimeTestBuildVersion,
 		TestedAt:              now,
 		Checks:                checks,
 	}
@@ -81,7 +81,7 @@ func TestRuntimeConsumerEvidenceValidationFailsClosed(t *testing.T) {
 		"wrong policy":   func(e *RuntimeConsumerEvidence) { e.PolicyVersion-- },
 		"wrong platform": func(e *RuntimeConsumerEvidence) { e.Platform = "linux-amd64" },
 		"wrong runtime":  func(e *RuntimeConsumerEvidence) { e.HeadlessShellVersion = "150.0.0.0" },
-		"wrong build":    func(e *RuntimeConsumerEvidence) { e.PageSkeinBuildVersion = "other-build" },
+		"wrong build":    func(e *RuntimeConsumerEvidence) { e.SnapRefBuildVersion = "other-build" },
 		"missing check":  func(e *RuntimeConsumerEvidence) { e.Checks = e.Checks[:len(e.Checks)-1] },
 		"failed check":   func(e *RuntimeConsumerEvidence) { e.Checks[0].Status = RuntimeConsumerStatusFail },
 		"bad receipt":    func(e *RuntimeConsumerEvidence) { e.Checks[0].ReceiptSHA256 = strings.Repeat("0", 64) },
@@ -136,7 +136,7 @@ func TestLoadRuntimeConsumerEvidenceIsBoundedAndClosed(t *testing.T) {
 
 func TestWriteRuntimeConsumerEvidenceProducesVerifiableReceipts(t *testing.T) {
 	useRuntimeTestBuildVersion(t)
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
+	t.Setenv("SNAPREF_HOME", t.TempDir())
 	platform, err := runtimePlatform()
 	if err != nil {
 		t.Fatal(err)

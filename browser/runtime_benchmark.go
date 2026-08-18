@@ -183,7 +183,7 @@ func runtimeBenchmarkServer() *httptest.Server {
 		fmt.Fprint(w, `<!doctype html><html><head><style>
 html,body{margin:0;width:800px;height:600px;background:#f4f1ea;color:#17202a;font:16px system-ui}
 main{box-sizing:border-box;width:800px;height:600px;padding:48px}button{padding:12px 18px;background:#164e63;color:white;border:0;border-radius:6px}
-</style></head><body><main><h1 id="title">PageSkein runtime acceptance</h1><p>Deterministic local fixture.</p><button id="action">Ready</button></main></body></html>`)
+</style></head><body><main><h1 id="title">SnapRef runtime acceptance</h1><p>Deterministic local fixture.</p><button id="action">Ready</button></main></body></html>`)
 	}))
 }
 
@@ -204,7 +204,7 @@ func runtimeFunctionalSmoke(ctx context.Context, kind RuntimeKind, targetURL str
 	if err := RemoteEval(ctx, session, "", `document.querySelector('#title').textContent`, &title, 10*time.Second); err != nil {
 		return nil, err
 	}
-	if title != "PageSkein runtime acceptance" {
+	if title != "SnapRef runtime acceptance" {
 		return nil, fmt.Errorf("unexpected fixture title %q", title)
 	}
 	return RemoteScreenshotCurrentWithTimeout(session, false, 20*time.Second)
@@ -306,7 +306,7 @@ func runRuntimeBenchmarkSample(ctx context.Context, kind RuntimeKind, targetURL 
 	if err = RemoteEval(ctx, session, "", `document.querySelector('#title')?.textContent || ''`, &title, 10*time.Second); err != nil {
 		return sample, focusPass, focusReason, err
 	}
-	if title != "PageSkein runtime acceptance" {
+	if title != "SnapRef runtime acceptance" {
 		return sample, focusPass, focusReason, fmt.Errorf("unexpected steady-state fixture title %q", title)
 	}
 	sample.RSSBytes, err = waitRuntimeSteadyRSS(ctx, session.PID, 6*time.Second)

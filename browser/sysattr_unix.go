@@ -7,7 +7,7 @@ import (
 	"syscall"
 )
 
-// ConfigureDetachedProcess gives any PageSkein-owned long-lived child the
+// ConfigureDetachedProcess gives any SnapRef-owned long-lived child the
 // same cross-platform console and signal isolation as Chromium itself.
 func ConfigureDetachedProcess(cmd *exec.Cmd) {
 	cmd.SysProcAttr = detachAttr()

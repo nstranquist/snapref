@@ -7,8 +7,11 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ### Changed
 
+- Public product identity is now SnapRef (`snapref` CLI, `SNAPREF_*` environment
+  prefix, module `github.com/nstranquist/snapref`, catalog `product.snapref`).
+  The factory adapter remains `ndev browser`.
 - Runtime acceptance policy v4 requires an exact-version-matched managed pair,
-  a PageSkein build identity bound to the running executable's SHA-256, rehashed
+  a SnapRef build identity bound to the running executable's SHA-256, rehashed
   typed receipts for self-test,
   tools, screenshots, observer, scripts, skills, and MCP, alternating launch
   order, deterministic fixture navigation, converged five-reading process-tree
@@ -36,7 +39,7 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
   external override; it no longer searches `PATH` or personal application
   directories.
 - Standalone missing-runtime diagnostics now prescribe the available
-  `pageskein runtime install` command, and standalone routing text no longer
+  `snapref runtime install` command, and standalone routing text no longer
   implies that the factory-only browser skill is included.
 
 ### Security
@@ -88,9 +91,9 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 ### Changed
 
 - `auto` is now managed-only: it never searches common personal-browser paths.
-  `PAGESKEIN_CHROME` and `NDEV_BROWSER_CHROME` remain explicit external escape
+  `SNAPREF_CHROME` and `NDEV_BROWSER_CHROME` remain explicit external escape
   hatches. Headful and unpacked-extension requests route to Chrome for Testing.
-- Every launch-bearing PageSkein/NDev path accepts or propagates a typed runtime
+- Every launch-bearing SnapRef/NDev path accepts or propagates a typed runtime
   request, including stateless skills, batches, scripts, local-demo, companion
   probes, and self-test.
 - Managed runtime identity replaces personal-browser app identity as the
@@ -135,7 +138,7 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
   CDP, preserving targets instead of letting chromedp close them on cleanup.
 - Versioned telemetry and script-run JSON schemas.
 - Deterministic macOS/Linux/Windows release archives and SHA-256 manifest.
-- Dated live PageSkein/agent-browser/Playwright MCP comparison harness.
+- Dated live SnapRef/agent-browser/Playwright MCP comparison harness.
 
 ### Security
 

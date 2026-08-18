@@ -1,43 +1,44 @@
-# PageSkein browser engine
+# SnapRef browser engine
 
 The `browser` package owns isolated Chromium sessions, CDP transport, typed
 actionability, interactive snapshots, revision-bound executable refs, console
-capture, screenshots, lifecycle locks, telemetry, findings, and local skills.
+capture, screenshots, product-shot packs, screencasts, lifecycle locks,
+telemetry, findings, and local skills.
 
-The public CLI is `pageskein`:
+The public CLI is `snapref`:
 
 ```sh
-pageskein doctor
-pageskein open demo
-pageskein exec demo navigate http://localhost:3000
-pageskein exec demo snapshot --wait-for-selector '[data-test="app-ready"]' --settle 1s
-pageskein exec demo click 'sr-…:e1'
-pageskein close demo --purge-profile
+snapref doctor
+snapref open demo
+snapref exec demo navigate http://localhost:3000
+snapref exec demo snapshot --wait-for-selector '[data-test="app-ready"]' --settle 1s
+snapref exec demo click 'sr-…:e1'
+snapref close demo --purge-profile
 ```
 
 Defaults:
 
 - headless, managed Chromium-family runtimes;
-- isolated profiles under `~/.pageskein/browser`;
-- filesystem-loaded skills under `~/.pageskein/skills`;
+- isolated profiles under `~/.snapref/browser`;
+- filesystem-loaded skills under `~/.snapref/skills`;
 - `auto` never searches personal browser installations;
-- `pageskein runtime install` is the only runtime-download surface;
+- `snapref runtime install` is the only runtime-download surface;
 - Chrome for Testing handles headful/extension work; accepted Headless Shell
   handles ordinary headless work;
-- `PAGESKEIN_CHROME` explicitly selects an external browser binary;
-- `PAGESKEIN_DEBUG=1` exposes Chrome stderr.
+- `SNAPREF_CHROME` explicitly selects an external browser binary;
+- `SNAPREF_DEBUG=1` exposes Chrome stderr.
 
 ```sh
-pageskein runtime install --runtime chrome-for-testing --channel stable
-pageskein runtime install --runtime headless-shell --channel stable
-pageskein runtime verify --all
-pageskein runtime benchmark --samples 30
+snapref runtime install --runtime chrome-for-testing --channel stable
+snapref runtime install --runtime headless-shell --channel stable
+snapref runtime verify --all
+snapref runtime benchmark --samples 30
 ndev browser runtime consumer-evidence --out ~/.nicos-dev/browser/runtimes/runtime-consumer-evidence.json
 ndev browser runtime benchmark --samples 30 --consumer-evidence ~/.nicos-dev/browser/runtimes/runtime-consumer-evidence.json --record
-pageskein doctor
+snapref doctor
 ```
 
-Standalone PageSkein benchmarking is diagnostic and non-mutating. NDev owns
+Standalone SnapRef benchmarking is diagnostic and non-mutating. NDev owns
 acceptance recording because it can produce the required consumer evidence in
 the exact executable being authorized.
 
@@ -49,7 +50,7 @@ download or update a runtime.
 
 The `NDEV_BROWSER_*` environment aliases remain only so the dogfooded Nicos
 adapter can migrate without breaking existing sessions. New standalone usage
-should use `PAGESKEIN_*`.
+should use `SNAPREF_*`.
 
 Snapshots retry an initially empty interactive inventory for 750ms. A known SPA
 should additionally pass a readiness selector; `Settle` requires two equal,
@@ -58,7 +59,7 @@ context chain. Closed roots and cross-origin frame contents stay outside this
 page-script boundary.
 
 Snapshot refs are ephemeral and fail closed. A new snapshot supersedes prior
-refs, and every action rechecks the target's live fingerprint. PageSkein never
+refs, and every action rechecks the target's live fingerprint. SnapRef never
 silently relocates a changed ref.
 
 Persistent-session screenshots have two distinct contracts. Viewport capture

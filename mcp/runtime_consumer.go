@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nstranquist/pageskein/browser"
+	"github.com/nstranquist/snapref/browser"
 )
 
 // RuntimeConsumerSmokeReceipt is the typed result of the managed-runtime MCP

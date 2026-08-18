@@ -55,7 +55,7 @@ func RuntimeAcceptanceBuildIdentity() string {
 }
 
 // RuntimeConsumerSurface is one product surface that must prove the selected
-// Headless Shell is a compatible PageSkein runtime before auto may prefer it.
+// Headless Shell is a compatible SnapRef runtime before auto may prefer it.
 type RuntimeConsumerSurface string
 
 const (
@@ -104,7 +104,7 @@ type runtimeConsumerReceipt struct {
 	Platform                string                 `json:"platform"`
 	HeadlessShellVersion    string                 `json:"headless_shell_version"`
 	ChromeForTestingVersion string                 `json:"chrome_for_testing_version"`
-	PageSkeinBuildVersion   string                 `json:"pageskein_build_version"`
+	SnapRefBuildVersion   string                 `json:"snapref_build_version"`
 	StartedAt               time.Time              `json:"started_at"`
 	FinishedAt              time.Time              `json:"finished_at"`
 	Command                 []string               `json:"command"`
@@ -121,7 +121,7 @@ type RuntimeConsumerEvidence struct {
 	Platform                string                 `json:"platform"`
 	HeadlessShellVersion    string                 `json:"headless_shell_version"`
 	ChromeForTestingVersion string                 `json:"chrome_for_testing_version"`
-	PageSkeinBuildVersion   string                 `json:"pageskein_build_version"`
+	SnapRefBuildVersion   string                 `json:"snapref_build_version"`
 	TestedAt                time.Time              `json:"tested_at"`
 	Checks                  []RuntimeConsumerCheck `json:"checks"`
 }
@@ -199,7 +199,7 @@ func WriteRuntimeConsumerEvidence(path string, results []RuntimeConsumerResult) 
 	}
 	buildVersion := runtimeAcceptanceBuildVersion()
 	if buildVersion == "" || buildVersion == "dev" {
-		return nil, errors.New("current PageSkein build has no stable build identity")
+		return nil, errors.New("current SnapRef build has no stable build identity")
 	}
 	if len(results) != len(requiredRuntimeConsumerSurfaces) {
 		return nil, fmt.Errorf("runtime consumer results have %d surfaces; want %d", len(results), len(requiredRuntimeConsumerSurfaces))
@@ -230,7 +230,7 @@ func WriteRuntimeConsumerEvidence(path string, results []RuntimeConsumerResult) 
 			SchemaVersion: runtimeConsumerEvidenceSchemaVersion, PolicyVersion: runtimeAcceptancePolicyVersion,
 			Surface: result.Surface, Status: status, Platform: platform,
 			HeadlessShellVersion: shell.Version, ChromeForTestingVersion: cft.Version,
-			PageSkeinBuildVersion: buildVersion, StartedAt: result.StartedAt.UTC(), FinishedAt: result.FinishedAt.UTC(),
+			SnapRefBuildVersion: buildVersion, StartedAt: result.StartedAt.UTC(), FinishedAt: result.FinishedAt.UTC(),
 			Command: append([]string(nil), result.Command...), ExitCode: result.ExitCode, Output: result.Output,
 		}
 		receiptPath := filepath.Join(receiptDir, string(result.Surface)+".json")
@@ -249,7 +249,7 @@ func WriteRuntimeConsumerEvidence(path string, results []RuntimeConsumerResult) 
 	evidence := &RuntimeConsumerEvidence{
 		SchemaVersion: runtimeConsumerEvidenceSchemaVersion, PolicyVersion: runtimeAcceptancePolicyVersion,
 		Platform: platform, HeadlessShellVersion: shell.Version, ChromeForTestingVersion: cft.Version,
-		PageSkeinBuildVersion: buildVersion, TestedAt: testedAt, Checks: checks,
+		SnapRefBuildVersion: buildVersion, TestedAt: testedAt, Checks: checks,
 	}
 	evidence = normalizedRuntimeConsumerEvidence(evidence)
 	if err := writeJSONAtomic(absolutePath, evidence, 0o600); err != nil {
@@ -293,10 +293,10 @@ func validateRuntimeConsumerEvidence(evidence *RuntimeConsumerEvidence, platform
 		return errors.New("runtime consumer evidence does not match the selected platform and runtime versions")
 	}
 	if buildVersion == "" || buildVersion == "dev" {
-		return errors.New("current PageSkein build has no stable build identity")
+		return errors.New("current SnapRef build has no stable build identity")
 	}
-	if evidence.PageSkeinBuildVersion != buildVersion {
-		return fmt.Errorf("runtime consumer evidence build %q does not match current PageSkein build %q", evidence.PageSkeinBuildVersion, buildVersion)
+	if evidence.SnapRefBuildVersion != buildVersion {
+		return fmt.Errorf("runtime consumer evidence build %q does not match current SnapRef build %q", evidence.SnapRefBuildVersion, buildVersion)
 	}
 	if evidence.TestedAt.IsZero() || evidence.TestedAt.After(time.Now().UTC().Add(5*time.Minute)) {
 		return errors.New("runtime consumer evidence has an invalid tested_at timestamp")
@@ -370,7 +370,7 @@ func verifyRuntimeConsumerReceipt(check RuntimeConsumerCheck, evidence *RuntimeC
 	if receipt.SchemaVersion != runtimeConsumerEvidenceSchemaVersion || receipt.PolicyVersion != runtimeAcceptancePolicyVersion ||
 		receipt.Surface != check.Surface || receipt.Status != check.Status || receipt.Platform != evidence.Platform ||
 		receipt.HeadlessShellVersion != evidence.HeadlessShellVersion || receipt.ChromeForTestingVersion != evidence.ChromeForTestingVersion ||
-		receipt.PageSkeinBuildVersion != evidence.PageSkeinBuildVersion || receipt.StartedAt.IsZero() || receipt.FinishedAt.Before(receipt.StartedAt) ||
+		receipt.SnapRefBuildVersion != evidence.SnapRefBuildVersion || receipt.StartedAt.IsZero() || receipt.FinishedAt.Before(receipt.StartedAt) ||
 		len(receipt.Command) == 0 || receipt.ExitCode != 0 {
 		return fmt.Errorf("runtime consumer surface %q receipt identity or result is invalid", check.Surface)
 	}

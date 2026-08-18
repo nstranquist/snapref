@@ -1,10 +1,8 @@
 package browser
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,7 +11,7 @@ import (
 // Findings ledger — the agent-written outcome layer that the mechanical
 // telemetry (events.jsonl) can't capture. events.jsonl records THAT a snapshot/
 // screenshot/console ran; findings.jsonl records what the agent CONCLUDED and
-// whether the page got better. One JSONL row per finding; `pageskein stats`
+// whether the page got better. One JSONL row per finding; `snapref stats`
 // rolls it up alongside the computed adoption metrics so a run is judged on both
 // "how well the tool was used" (computed) and "what it found / fixed" (written).
 //
@@ -117,15 +115,11 @@ func AppendFinding(rec FindingRecord) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	body, err := json.Marshal(rec)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	return json.NewEncoder(f).Encode(rec)
+	return appendAndRotateJSONL(path, body, 0o600)
 }
 
 // FindingsFilter narrows ReadFindings.
@@ -143,44 +137,30 @@ func ReadFindings(filter FindingsFilter) ([]FindingRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	f, err := os.Open(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	defer f.Close()
-
 	var cutoff time.Time
 	if filter.Since > 0 {
 		cutoff = time.Now().Add(-filter.Since)
 	}
 	out := []FindingRecord{}
-	sc := bufio.NewScanner(f)
-	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
-	for sc.Scan() {
-		line := sc.Bytes()
-		if len(line) == 0 {
-			continue
-		}
+	err = forEachJSONLFamilyLine(path, func(line []byte) error {
 		var rec FindingRecord
 		if json.Unmarshal(line, &rec) != nil {
-			continue // skip a torn last line (concurrent append)
+			return nil // skip a torn last line (concurrent append)
 		}
 		if filter.Session != "" && rec.Session != filter.Session {
-			continue
+			return nil
 		}
 		if filter.Severity != "" && rec.Severity != strings.ToLower(filter.Severity) {
-			continue
+			return nil
 		}
 		if filter.Category != "" && rec.Category != strings.ToLower(filter.Category) {
-			continue
+			return nil
 		}
 		if !cutoff.IsZero() && rec.Timestamp.Before(cutoff) {
-			continue
+			return nil
 		}
 		out = append(out, rec)
-	}
-	return out, sc.Err()
+		return nil
+	})
+	return out, err
 }

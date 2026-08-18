@@ -1,4 +1,4 @@
-package pageskein_test
+package snapref_test
 
 import (
 	"os"
@@ -25,7 +25,7 @@ func TestStandaloneProductContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(product), "id: product.pageskein\n") {
+	if !strings.Contains(string(product), "id: product.snapref\n") {
 		t.Fatalf("unexpected product identity:\n%s", product)
 	}
 	if !strings.Contains(string(product), "launch: built\n") {

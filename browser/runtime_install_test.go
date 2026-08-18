@@ -19,8 +19,8 @@ import (
 
 func TestInstallRuntimeStableIsVerifiedAtomicAndIdempotent(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("PAGESKEIN_HOME", home)
-	t.Setenv("PAGESKEIN_CHROME", "")
+	t.Setenv("SNAPREF_HOME", home)
+	t.Setenv("SNAPREF_CHROME", "")
 	t.Setenv("NDEV_BROWSER_CHROME", "")
 	version := "132.0.6834.0"
 	archive := runtimeZipFixture(t, "chrome-headless-shell-mac/chrome-headless-shell", []byte("fake-shell"))
@@ -77,7 +77,7 @@ func TestInstallRuntimeStableIsVerifiedAtomicAndIdempotent(t *testing.T) {
 
 func TestInstallRuntimeExactVersionUsesKnownGoodMetadata(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("PAGESKEIN_HOME", home)
+	t.Setenv("SNAPREF_HOME", home)
 	version := "132.0.6834.0"
 	archive := runtimeZipFixture(t, "chrome/chrome", []byte("fake-chrome"))
 	var server *httptest.Server
@@ -249,7 +249,7 @@ func TestRuntimeDownloadRejectsUntrustedAndOversizedMetadata(t *testing.T) {
 }
 
 func TestPruneRuntimesIsDryRunAndPreservesSelectedAndLiveReferences(t *testing.T) {
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
+	t.Setenv("SNAPREF_HOME", t.TempDir())
 	platform, err := runtimePlatform()
 	if err != nil {
 		t.Fatal(err)

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nstranquist/pageskein/browser"
+	"github.com/nstranquist/snapref/browser"
 )
 
 // StatelessPage is a Page that launches a fresh chromium per call.

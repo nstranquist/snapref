@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nstranquist/pageskein/browser"
+	"github.com/nstranquist/snapref/browser"
 )
 
 // fakeDriver is a programmable browser.Driver for engine tests — no Chrome.
@@ -140,7 +140,7 @@ func runPlan(t *testing.T, f *fakeDriver, plan Plan, opts RunOptions) (*RunRepor
 	t.Helper()
 	// Runner tests exercise both successful and intentionally denied operations.
 	// Keep their file telemetry out of the operator's real browser health store.
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
+	t.Setenv("SNAPREF_HOME", t.TempDir())
 	var sink strings.Builder
 	opts.Sink = &sink
 	if opts.Now == nil {

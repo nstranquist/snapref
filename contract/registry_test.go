@@ -6,10 +6,10 @@ func TestRegistryContractIsCompleteAndUnique(t *testing.T) {
 	if err := Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if len(All()) != 22 {
-		t.Fatalf("operation count = %d, want 22", len(All()))
+	if len(All()) != 24 {
+		t.Fatalf("operation count = %d, want 24", len(All()))
 	}
-	for _, id := range []OperationID{Navigate, Click, Snapshot, Screenshot, Console, ScriptRun} {
+	for _, id := range []OperationID{Navigate, Click, Snapshot, Screenshot, Shot, Record, Console, ScriptRun} {
 		if _, ok := ByID(id); !ok {
 			t.Fatalf("missing operation %q", id)
 		}
@@ -33,7 +33,7 @@ func TestRegistryPermissionClasses(t *testing.T) {
 }
 
 func TestCLIAndScriptAvailabilityAreExplicit(t *testing.T) {
-	for _, verb := range []string{"navigate", "click", "type", "wait", "assert", "snapshot", "screenshot-current"} {
+	for _, verb := range []string{"navigate", "click", "type", "wait", "assert", "snapshot", "screenshot-current", "shot", "record"} {
 		if _, ok := ByCLIVerb(verb); !ok {
 			t.Errorf("CLI verb %q is not registered", verb)
 		}

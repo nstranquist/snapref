@@ -1,13 +1,13 @@
 # Release checklist
 
-PageSkein is not released. Complete every item before you create a public
+SnapRef is not released. Complete every item before you create a public
 repository, tag, module version, package, or binary release.
 
-- [ ] Clear the public name and module path with the repository owner.
+- [x] Clear the public name and module path with the repository owner. Public name is SnapRef; module path is `github.com/nstranquist/snapref`.
 - [ ] Run `make verify-release` from a clean standalone checkout.
 - [ ] Run `gitleaks git . --redact=100 --no-banner` and resolve every finding.
 - [ ] Confirm that `EXTRACTION.json` matches the reviewed factory source.
-- [ ] Run `pageskein self-test` with the selected managed runtime.
+- [ ] Run `snapref self-test` with the selected managed runtime.
 - [ ] Pass the physical Windows and Chrome gate. Wine evidence is not enough.
 - [ ] Replace the sibling ProcessTree directive with a reviewed SemVer
   dependency. Update the release-contract test in the same change.

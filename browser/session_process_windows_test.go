@@ -17,8 +17,8 @@ func TestWindowsProcessLifecycleNative(t *testing.T) {
 	childPIDFile := filepath.Join(t.TempDir(), "child.pid")
 	command := exec.Command(os.Args[0], "-test.run=^TestWindowsLifecycleHelper$")
 	command.Env = append(os.Environ(),
-		"PAGESKEIN_WINDOWS_LIFECYCLE_HELPER=1",
-		"PAGESKEIN_WINDOWS_CHILD_PID_FILE="+childPIDFile,
+		"SNAPREF_WINDOWS_LIFECYCLE_HELPER=1",
+		"SNAPREF_WINDOWS_CHILD_PID_FILE="+childPIDFile,
 	)
 	if err := command.Start(); err != nil {
 		t.Fatalf("start lifecycle helper: %v", err)
@@ -103,18 +103,18 @@ func TestWindowsProcessLifecycleNative(t *testing.T) {
 }
 
 func TestWindowsLifecycleHelper(t *testing.T) {
-	if os.Getenv("PAGESKEIN_WINDOWS_LIFECYCLE_HELPER") != "1" {
+	if os.Getenv("SNAPREF_WINDOWS_LIFECYCLE_HELPER") != "1" {
 		return
 	}
 	child := exec.Command(os.Args[0], "-test.run=^TestWindowsLifecycleChild$")
 	child.Env = append(os.Environ(),
-		"PAGESKEIN_WINDOWS_LIFECYCLE_HELPER=",
-		"PAGESKEIN_WINDOWS_LIFECYCLE_CHILD=1",
+		"SNAPREF_WINDOWS_LIFECYCLE_HELPER=",
+		"SNAPREF_WINDOWS_LIFECYCLE_CHILD=1",
 	)
 	if err := child.Start(); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(os.Getenv("PAGESKEIN_WINDOWS_CHILD_PID_FILE"), []byte(strconv.Itoa(child.Process.Pid)), 0o600); err != nil {
+	if err := os.WriteFile(os.Getenv("SNAPREF_WINDOWS_CHILD_PID_FILE"), []byte(strconv.Itoa(child.Process.Pid)), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	for {
@@ -123,7 +123,7 @@ func TestWindowsLifecycleHelper(t *testing.T) {
 }
 
 func TestWindowsLifecycleChild(t *testing.T) {
-	if os.Getenv("PAGESKEIN_WINDOWS_LIFECYCLE_CHILD") != "1" {
+	if os.Getenv("SNAPREF_WINDOWS_LIFECYCLE_CHILD") != "1" {
 		return
 	}
 	for {

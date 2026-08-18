@@ -14,7 +14,7 @@ import (
 
 // Session is a long-lived Chromium owned by the harness, addressable by
 // name. Persists in a session file so it survives the launching process
-// going away — subsequent `pageskein exec <name>` reattaches via CDP.
+// going away — subsequent `snapref exec <name>` reattaches via CDP.
 type Session struct {
 	Name             string              `json:"name"`
 	PID              int                 `json:"pid"`
@@ -82,7 +82,7 @@ type IdleExpiryResult struct {
 }
 
 // SetSessionIdleTimeout records the owner-defined idle lease for a persistent
-// session. PageSkein itself does not choose a policy; adapters such as ndev can
+// session. SnapRef itself does not choose a policy; adapters such as ndev can
 // attach a watchdog and make that lifecycle visible in the session record.
 func SetSessionIdleTimeout(name string, timeout time.Duration) (*Session, error) {
 	return SetSessionIdlePolicy(name, timeout, false)
@@ -137,7 +137,7 @@ func SetSessionKeepAlive(name string) (*Session, error) {
 }
 
 // TouchSession renews a configured idle lease. Sessions without an idle policy
-// are left untouched so standalone PageSkein callers retain their existing
+// are left untouched so standalone SnapRef callers retain their existing
 // persistent-session semantics.
 func TouchSession(name string) error {
 	unlock, err := acquireSessionLifecycleLock(name, 5*time.Second)
@@ -268,14 +268,14 @@ func ValidateSessionName(name string) error {
 	return nil
 }
 
-// SessionRoot returns ~/.pageskein/browser by default. Override via
-// PAGESKEIN_HOME (used by tests + agents that want isolation).
+// SessionRoot returns ~/.snapref/browser by default. Override via
+// SNAPREF_HOME (used by tests + agents that want isolation).
 func SessionRoot() (string, error) {
-	if env := os.Getenv("PAGESKEIN_HOME"); env != "" {
+	if env := os.Getenv("SNAPREF_HOME"); env != "" {
 		return env, nil
 	}
 	// NDEV_BROWSER_HOME is the compatibility seam for the shipped ndev adapter.
-	// PageSkein-native callers should prefer PAGESKEIN_HOME.
+	// SnapRef-native callers should prefer SNAPREF_HOME.
 	if env := os.Getenv("NDEV_BROWSER_HOME"); env != "" {
 		return env, nil
 	}
@@ -283,7 +283,7 @@ func SessionRoot() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".pageskein", "browser"), nil
+	return filepath.Join(home, ".snapref", "browser"), nil
 }
 
 func sessionsDir() (string, error) {
@@ -510,7 +510,7 @@ func (s *Session) OwnsProcess() (bool, error) {
 
 // ownsLaunchedProcess is the destructive-operation authority. It intentionally
 // ignores mutable runtime files: a repaired or externally corrupted install
-// must never make PageSkein lose the ability to stop the exact process/profile
+// must never make SnapRef lose the ability to stop the exact process/profile
 // generation it launched.
 func (s *Session) ownsLaunchedProcess() (bool, error) {
 	return sessionOwnsProcess(s)

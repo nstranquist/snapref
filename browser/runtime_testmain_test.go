@@ -14,7 +14,7 @@ func requireManagedChromeForTesting(t *testing.T) {
 	isolatedHome := t.TempDir()
 	home := os.Getenv("NDEV_BROWSER_HOME")
 	if home == "" {
-		home = os.Getenv("PAGESKEIN_HOME")
+		home = os.Getenv("SNAPREF_HOME")
 	}
 	if home == "" {
 		userHome, err := os.UserHomeDir()
@@ -25,15 +25,15 @@ func requireManagedChromeForTesting(t *testing.T) {
 	}
 	runtimes := filepath.Join(home, "runtimes")
 	if info, err := os.Stat(runtimes); err != nil || !info.IsDir() {
-		t.Skipf("managed Chrome for Testing unavailable: run `pageskein runtime install --runtime chrome-for-testing --channel stable` (%v)", err)
+		t.Skipf("managed Chrome for Testing unavailable: run `snapref runtime install --runtime chrome-for-testing --channel stable` (%v)", err)
 	}
 	if err := os.Symlink(runtimes, filepath.Join(isolatedHome, "runtimes")); err != nil {
 		t.Skipf("managed Chrome for Testing unavailable in isolated test home: %v", err)
 	}
-	t.Setenv("PAGESKEIN_HOME", isolatedHome)
-	t.Setenv("PAGESKEIN_CHROME", "")
+	t.Setenv("SNAPREF_HOME", isolatedHome)
+	t.Setenv("SNAPREF_CHROME", "")
 	t.Setenv("NDEV_BROWSER_CHROME", "")
 	if _, err := ResolveRuntime(RuntimeRequest{Kind: RuntimeChromeForTesting}); err != nil {
-		t.Skipf("managed Chrome for Testing unavailable: %v; run `pageskein runtime install --runtime chrome-for-testing --channel stable`", err)
+		t.Skipf("managed Chrome for Testing unavailable: %v; run `snapref runtime install --runtime chrome-for-testing --channel stable`", err)
 	}
 }

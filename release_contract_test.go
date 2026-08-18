@@ -1,4 +1,4 @@
-package pageskein_test
+package snapref_test
 
 import (
 	"encoding/json"
@@ -31,13 +31,13 @@ func TestReleaseVersionSurfacesMatchSemanticVersioning(t *testing.T) {
 	if err := json.Unmarshal(packageRaw, &manifest); err != nil {
 		t.Fatal(err)
 	}
-	mainRaw, err := os.ReadFile(filepath.Join("cmd", "pageskein", "main.go"))
+	mainRaw, err := os.ReadFile(filepath.Join("cmd", "snapref", "main.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	binding := regexp.MustCompile(`(?m)^const version = "([^"]+)"$`).FindSubmatch(mainRaw)
 	if len(binding) != 2 {
-		t.Fatal("cmd/pageskein/main.go must contain exactly one simple version const")
+		t.Fatal("cmd/snapref/main.go must contain exactly one simple version const")
 	}
 	if manifest.Version != version || string(binding[1]) != version {
 		t.Fatalf("release version drift: VERSION=%s package.json=%s Go=%s", version, manifest.Version, binding[1])
@@ -103,7 +103,7 @@ func TestReleaseRepositoryContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	module := string(moduleBody)
-	if !strings.HasPrefix(module, "module github.com/nstranquist/pageskein\n") {
+	if !strings.HasPrefix(module, "module github.com/nstranquist/snapref\n") {
 		t.Fatalf("unexpected module identity:\n%s", module)
 	}
 	const localProcessTree = "replace github.com/nstranquist/processtree => ../processtree"
@@ -160,6 +160,8 @@ var thirdPartyDependencies = map[string]string{
 	"go.starlark.net":                    "third_party/licenses/go.starlark.net/LICENSE",
 	"go.yaml.in/yaml/v3":                 "third_party/licenses/go.yaml.in/yaml/v3/LICENSE",
 	"golang.org/x/sys":                   "third_party/licenses/golang.org/x/sys/LICENSE",
+	"golang.org/x/image":                 "third_party/licenses/golang.org/x/image/LICENSE",
+	"golang.org/x/text":                  "third_party/licenses/golang.org/x/text/LICENSE",
 }
 
 func TestThirdPartyAttributionContract(t *testing.T) {
@@ -183,6 +185,8 @@ func TestThirdPartyAttributionContract(t *testing.T) {
 		"third_party/licenses/go/LICENSE",
 		"third_party/licenses/go/PATENTS",
 		"third_party/licenses/golang.org/x/sys/PATENTS",
+		"third_party/licenses/golang.org/x/image/PATENTS",
+		"third_party/licenses/golang.org/x/text/PATENTS",
 	} {
 		if info, err := os.Lstat(name); err != nil || !info.Mode().IsRegular() {
 			t.Errorf("Go attribution file %s is not a regular file: %v", name, err)
@@ -204,8 +208,8 @@ func TestThirdPartyAttributionContract(t *testing.T) {
 func TestThirdPartyAttributionCoversBuiltPrograms(t *testing.T) {
 	command := exec.Command(
 		"go", "list", "-mod=readonly", "-deps",
-		"-f", `{{with .Module}}{{if ne .Path "github.com/nstranquist/pageskein"}}{{.Path}}{{end}}{{end}}`,
-		"./cmd/pageskein", "./cmd/pageskein-release",
+		"-f", `{{with .Module}}{{if ne .Path "github.com/nstranquist/snapref"}}{{.Path}}{{end}}{{end}}`,
+		"./cmd/snapref", "./cmd/snapref-release",
 	)
 	command.Env = append(os.Environ(), "GOWORK=off", "GOPROXY=off", "GOTOOLCHAIN=local")
 	output, err := command.CombinedOutput()

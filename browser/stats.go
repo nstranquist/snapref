@@ -11,7 +11,7 @@ import (
 )
 
 // Stats — the computed adoption + health layer over the telemetry sinks. It
-// answers "how much / how well was pageskein used" objectively, by a single
+// answers "how much / how well was snapref used" objectively, by a single
 // linear scan of events.jsonl + snapshot-events.jsonl + findings.jsonl. Nothing
 // here trusts self-report: the adoption numbers (snapshot vs eval escape-hatch,
 // console checks, script runs) are derived from the mechanical event stream the
@@ -130,43 +130,36 @@ func ReadStats(opts StatsOptions) (*BrowserStats, error) {
 
 	// events.jsonl — the mechanical trace.
 	if path, err := CommandEventLogPath(); err == nil {
-		if f, err := os.Open(path); err == nil {
-			sc := newJSONLScanner(f)
-			for sc.Scan() {
-				line := sc.Bytes()
-				if len(line) == 0 {
-					continue
-				}
-				var ev ObserverEvent
-				if json.Unmarshal(line, &ev) != nil {
-					continue
-				}
-				if !cutoff.IsZero() && !ev.Timestamp.IsZero() && ev.Timestamp.Before(cutoff) {
-					continue
-				}
-				if opts.Session != "" && ev.Session != opts.Session {
-					continue
-				}
-				if ev.Command == nil || ev.Command.Command == "" {
-					continue
-				}
-				if isSyntheticFixtureEvent(ev) {
-					st.ExcludedSynthetic++
-					continue
-				}
-				st.TotalEvents++
-				if ev.Session != "" {
-					sessions[ev.Session] = true
-				}
-				verb := ev.Command.Command
-				verbCounts[verb]++
-				if !ev.Command.OK {
-					verbNonOK[verb]++
-					st.NonOK++
-				}
+		_ = forEachJSONLFamilyLine(path, func(line []byte) error {
+			var ev ObserverEvent
+			if json.Unmarshal(line, &ev) != nil {
+				return nil
 			}
-			f.Close()
-		}
+			if !cutoff.IsZero() && !ev.Timestamp.IsZero() && ev.Timestamp.Before(cutoff) {
+				return nil
+			}
+			if opts.Session != "" && ev.Session != opts.Session {
+				return nil
+			}
+			if ev.Command == nil || ev.Command.Command == "" {
+				return nil
+			}
+			if isSyntheticFixtureEvent(ev) {
+				st.ExcludedSynthetic++
+				return nil
+			}
+			st.TotalEvents++
+			if ev.Session != "" {
+				sessions[ev.Session] = true
+			}
+			verb := ev.Command.Command
+			verbCounts[verb]++
+			if !ev.Command.OK {
+				verbNonOK[verb]++
+				st.NonOK++
+			}
+			return nil
+		})
 	}
 
 	for verb, n := range verbCounts {
@@ -234,7 +227,7 @@ func isSyntheticFixtureEvent(ev ObserverEvent) bool {
 		}
 	}
 	// Pre-fix cmd/ndev-go error-class tests escaped into the operator store when
-	// adapter initialization let a stale PAGESKEIN_HOME override isolated test
+	// adapter initialization let a stale SNAPREF_HOME override isolated test
 	// homes. Preserve the raw rows, but omit only the exact synthetic command.
 	if ev.Command.Command != "exec.click" || ev.Command.OK || ev.Command.ExitCode != 1 ||
 		ev.Command.Data["selector"] != "#x" {
@@ -288,27 +281,17 @@ func readSnapshotStats(cutoff time.Time, session string) SnapshotStats {
 	if err != nil {
 		return out
 	}
-	f, err := os.Open(path)
-	if err != nil {
-		return out
-	}
-	defer f.Close()
 	var sumMatched, sumDur float64
-	sc := newJSONLScanner(f)
-	for sc.Scan() {
-		line := sc.Bytes()
-		if len(line) == 0 {
-			continue
-		}
+	_ = forEachJSONLFamilyLine(path, func(line []byte) error {
 		var ev SnapshotEvent
 		if json.Unmarshal(line, &ev) != nil {
-			continue
+			return nil
 		}
 		if !cutoff.IsZero() && !ev.Timestamp.IsZero() && ev.Timestamp.Before(cutoff) {
-			continue
+			return nil
 		}
 		if session != "" && ev.Session != session {
-			continue
+			return nil
 		}
 		out.Count++
 		if ev.Truncated {
@@ -316,7 +299,8 @@ func readSnapshotStats(cutoff time.Time, session string) SnapshotStats {
 		}
 		sumMatched += float64(ev.Matched)
 		sumDur += float64(ev.DurationMS)
-	}
+		return nil
+	})
 	if out.Count > 0 {
 		out.AvgMatched = round1(sumMatched / float64(out.Count))
 		out.AvgDurationMS = round1(sumDur / float64(out.Count))

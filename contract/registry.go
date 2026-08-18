@@ -49,6 +49,8 @@ const (
 	Eval          OperationID = "eval"
 	Fetch         OperationID = "fetch"
 	Screenshot    OperationID = "screenshot"
+	Shot          OperationID = "shot"
+	Record        OperationID = "record"
 	Console       OperationID = "console"
 	Snapshot      OperationID = "snapshot"
 	Viewport      OperationID = "viewport"
@@ -89,6 +91,8 @@ var operations = []Operation{
 	{Eval, "eval", "browser_eval", "browser_eval", "eval", PermissionDrive, TimeoutDefault, "browser.eval", ResultJSON},
 	{Fetch, "fetch", "browser_fetch", "browser_fetch", "fetch", PermissionDrive, TimeoutDefault, "browser.fetch", ResultText},
 	{Screenshot, "screenshot", "browser_screenshot", "browser_screenshot", "screenshot", PermissionConditionalWrite, TimeoutCapture, "browser.screenshot", ResultArtifact},
+	{Shot, "shot", "browser_shot", "browser_shot", "", PermissionConditionalWrite, TimeoutCapture, "browser.shot", ResultArtifact},
+	{Record, "record", "browser_record", "browser_record", "", PermissionConditionalWrite, TimeoutCapture, "browser.record", ResultArtifact},
 	{Console, "console", "browser_console", "browser_console", "console", PermissionConditionalDrive, TimeoutSettle, "browser.console", ResultCollection},
 	{Snapshot, "snapshot", "browser_snapshot", "browser_snapshot", "snapshot", PermissionRead, TimeoutDefault, "browser.snapshot", ResultCollection},
 	{Viewport, "viewport", "", "", "viewport", PermissionDrive, TimeoutDefault, "browser.viewport", ResultNone},
@@ -131,6 +135,12 @@ func ByScript(verb string) (Operation, bool) {
 func ByCLIVerb(verb string) (Operation, bool) {
 	if verb == "screenshot-current" {
 		return ByID(Screenshot)
+	}
+	if verb == "shot" {
+		return ByID(Shot)
+	}
+	if verb == "record" {
+		return ByID(Record)
 	}
 	for _, operation := range operations {
 		if operation.CLIVerb == verb {

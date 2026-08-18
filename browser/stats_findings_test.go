@@ -15,7 +15,7 @@ func cmdEvent(session, verb string, ok bool, ts time.Time) ObserverEvent {
 }
 
 func TestReadStatsAdoptionAndVerbs(t *testing.T) {
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
+	t.Setenv("SNAPREF_HOME", t.TempDir())
 	now := time.Now().UTC()
 	events := []ObserverEvent{
 		cmdEvent("atlas", "exec.snapshot", true, now),
@@ -64,7 +64,7 @@ func TestReadStatsAdoptionAndVerbs(t *testing.T) {
 }
 
 func TestReadStatsExcludesLegacySyntheticFixtureEvents(t *testing.T) {
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
+	t.Setenv("SNAPREF_HOME", t.TempDir())
 	now := time.Now().UTC()
 	synthetic := cmdEvent("a", "script:navigate", false, now)
 	synthetic.Command.Data = map[string]any{"run_id": "run-19700101T000000.000-12345-001"}
@@ -87,7 +87,7 @@ func TestReadStatsExcludesLegacySyntheticFixtureEvents(t *testing.T) {
 }
 
 func TestReadStatsExcludesEscapedCLIErrorClassFixtureWindow(t *testing.T) {
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
+	t.Setenv("SNAPREF_HOME", t.TempDir())
 	synthetic := cmdEvent("s", "exec.click", false, legacyCLIFixtureStart.Add(time.Second))
 	synthetic.ErrorClass = ErrorClassUsage
 	synthetic.Command.ErrorClass = ErrorClassUsage
@@ -112,7 +112,7 @@ func TestReadStatsExcludesEscapedCLIErrorClassFixtureWindow(t *testing.T) {
 }
 
 func TestReadStatsExcludesExactCLIErrorClassFixtureOutsideLegacyWindow(t *testing.T) {
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
+	t.Setenv("SNAPREF_HOME", t.TempDir())
 	synthetic := cmdEvent("s", "exec.click", false, time.Now().UTC())
 	synthetic.ErrorClass = ErrorClassPolicy
 	synthetic.Command.ErrorClass = ErrorClassPolicy
@@ -133,7 +133,7 @@ func TestReadStatsExcludesExactCLIErrorClassFixtureOutsideLegacyWindow(t *testin
 }
 
 func TestReadStatsExcludesEscapedIdlePolicyParserFixtures(t *testing.T) {
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
+	t.Setenv("SNAPREF_HOME", t.TempDir())
 	now := legacyIdleFixtureStart.Add(time.Minute)
 	conflict := cmdEvent("conflict", "open", false, now)
 	conflict.Command.ErrorClass = ErrorClassUsage
@@ -167,7 +167,7 @@ func TestReadStatsExcludesEscapedIdlePolicyParserFixtures(t *testing.T) {
 }
 
 func TestReadStatsSessionAndSinceFilter(t *testing.T) {
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
+	t.Setenv("SNAPREF_HOME", t.TempDir())
 	now := time.Now().UTC()
 	old := now.Add(-48 * time.Hour)
 	_ = AppendEvent(cmdEvent("atlas", "exec.snapshot", true, now))
@@ -187,7 +187,7 @@ func TestReadStatsSessionAndSinceFilter(t *testing.T) {
 }
 
 func TestStatsWindowLabelAndRatchet(t *testing.T) {
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
+	t.Setenv("SNAPREF_HOME", t.TempDir())
 	now := time.Now().UTC()
 	for _, e := range []ObserverEvent{
 		cmdEvent("atlas", "exec.snapshot", true, now),
@@ -235,7 +235,7 @@ func TestStatsWindowLabelAndRatchet(t *testing.T) {
 }
 
 func TestSnapshotStatsRollup(t *testing.T) {
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
+	t.Setenv("SNAPREF_HOME", t.TempDir())
 	_ = AppendSnapshotEvent("atlas", &PageSnapshot{URL: "x", Matched: 10, Returned: 10, DurationMS: 2})
 	_ = AppendSnapshotEvent("atlas", &PageSnapshot{URL: "y", Matched: 20, Returned: 20, DurationMS: 4, Truncated: true})
 	st, _ := ReadStats(StatsOptions{})
@@ -246,7 +246,7 @@ func TestSnapshotStatsRollup(t *testing.T) {
 }
 
 func TestFindingsRoundTripAndValidation(t *testing.T) {
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
+	t.Setenv("SNAPREF_HOME", t.TempDir())
 
 	// valid add (severity defaults to medium when empty)
 	if err := AppendFinding(FindingRecord{Session: "atlas", View: "graph", Finding: "nodes unnamed"}); err != nil {

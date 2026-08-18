@@ -86,7 +86,7 @@ func newAllocCtx(parent context.Context, o LaunchOptions) (context.Context, cont
 		// ExecAllocator owns creation of its initial page target. Chromium 151
 		// accepts --no-startup-window but then leaves chromedp waiting on a target
 		// until the operation deadline. Managed executable identity and headless
-		// mode are the isolation boundary; no PageSkein launch uses that flag.
+		// mode are the isolation boundary; no SnapRef launch uses that flag.
 		opts = append(opts, chromedp.Headless)
 	} else {
 		opts = append(opts, chromedp.Flag("headless", false))
@@ -254,7 +254,7 @@ func SaveScreenshotWithCaptureAndWait(ctx context.Context, opts LaunchOptions, u
 		return "", err
 	}
 	if path == "" {
-		path = filepath.Join(os.TempDir(), fmt.Sprintf("pageskein-%d.png", time.Now().UnixNano()))
+		path = filepath.Join(os.TempDir(), fmt.Sprintf("snapref-%d.png", time.Now().UnixNano()))
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", err

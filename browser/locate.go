@@ -1,10 +1,10 @@
-// Package browser is PageSkein's Go-native CDP engine for agent-driven browser
+// Package browser is SnapRef's Go-native CDP engine for agent-driven browser
 // work. It drives a separate Chromium process for scriptable, scheduled, and
 // headless flows without taking over the user's daily browser profile.
 //
 // Stateless commands launch and tear down their own Chromium. Named
 // sessions persist an isolated profile and CDP endpoint for follow-up
-// `pageskein exec` calls.
+// `snapref exec` calls.
 package browser
 
 import (
@@ -16,7 +16,7 @@ import (
 	"strings"
 )
 
-// LocateResult is what `pageskein doctor` returns.
+// LocateResult is what `snapref doctor` returns.
 type LocateResult struct {
 	SchemaVersion                int                 `json:"schema_version"`
 	RequestedRuntime             RuntimeKind         `json:"requested_runtime"`
@@ -40,7 +40,7 @@ var ErrNoChrome = errors.New("no Chromium-class browser found")
 
 // LocateChrome is retained for explicit external-runtime compatibility only.
 // It never searches PATH, application directories, or personal browsers.
-// PAGESKEIN_CHROME wins; NDEV_BROWSER_CHROME remains a legacy adapter alias.
+// SNAPREF_CHROME wins; NDEV_BROWSER_CHROME remains a legacy adapter alias.
 func LocateChrome() (string, error) {
 	if env, label := chromeOverride(); env != "" {
 		if _, err := os.Stat(env); err != nil {
@@ -48,12 +48,12 @@ func LocateChrome() (string, error) {
 		}
 		return env, nil
 	}
-	return "", fmt.Errorf("%w: explicit PAGESKEIN_CHROME or NDEV_BROWSER_CHROME override is required", ErrNoChrome)
+	return "", fmt.Errorf("%w: explicit SNAPREF_CHROME or NDEV_BROWSER_CHROME override is required", ErrNoChrome)
 }
 
 func chromeOverride() (path, label string) {
-	if path = strings.TrimSpace(os.Getenv("PAGESKEIN_CHROME")); path != "" {
-		return path, "PAGESKEIN_CHROME"
+	if path = strings.TrimSpace(os.Getenv("SNAPREF_CHROME")); path != "" {
+		return path, "SNAPREF_CHROME"
 	}
 	if path = strings.TrimSpace(os.Getenv("NDEV_BROWSER_CHROME")); path != "" {
 		return path, "NDEV_BROWSER_CHROME"
@@ -62,7 +62,7 @@ func chromeOverride() (path, label string) {
 }
 
 // Doctor runs a setup probe: locate the binary + read its version. Used
-// by `pageskein doctor` and as a precondition for every other verb.
+// by `snapref doctor` and as a precondition for every other verb.
 func Doctor() LocateResult {
 	return DoctorRuntime(RuntimeAuto)
 }

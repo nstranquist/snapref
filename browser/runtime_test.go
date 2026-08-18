@@ -23,8 +23,8 @@ func TestParseRuntimeKindClosed(t *testing.T) {
 }
 
 func TestResolveRuntimeFailsClosedWithoutManagedSelection(t *testing.T) {
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
-	t.Setenv("PAGESKEIN_CHROME", "")
+	t.Setenv("SNAPREF_HOME", t.TempDir())
+	t.Setenv("SNAPREF_CHROME", "")
 	t.Setenv("NDEV_BROWSER_CHROME", "")
 	_, err := ResolveRuntime(RuntimeRequest{Kind: RuntimeAuto})
 	if err == nil || !strings.Contains(err.Error(), "runtime install --runtime chrome-for-testing") {
@@ -34,7 +34,7 @@ func TestResolveRuntimeFailsClosedWithoutManagedSelection(t *testing.T) {
 
 func TestRuntimeInstallRemediationUsesStandaloneCLI(t *testing.T) {
 	for _, kind := range []RuntimeKind{RuntimeChromeForTesting, RuntimeHeadlessShell} {
-		want := "pageskein runtime install --runtime " + string(kind) + " --channel stable"
+		want := "snapref runtime install --runtime " + string(kind) + " --channel stable"
 		if got := runtimeInstallRemediation(kind); got != want {
 			t.Fatalf("runtimeInstallRemediation(%q) = %q, want %q", kind, got, want)
 		}
@@ -42,7 +42,7 @@ func TestRuntimeInstallRemediationUsesStandaloneCLI(t *testing.T) {
 }
 
 func TestResolveRuntimeRejectsIncompatibleShellBeforeInstallLookup(t *testing.T) {
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
+	t.Setenv("SNAPREF_HOME", t.TempDir())
 	_, err := ResolveRuntime(RuntimeRequest{Kind: RuntimeHeadlessShell, Headful: true})
 	if err == nil || !strings.Contains(err.Error(), "does not support headful") {
 		t.Fatalf("headful shell error = %v", err)
@@ -54,8 +54,8 @@ func TestResolveRuntimeRejectsIncompatibleShellBeforeInstallLookup(t *testing.T)
 }
 
 func TestResolveRuntimeUsesExplicitExternalOnly(t *testing.T) {
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
-	t.Setenv("PAGESKEIN_CHROME", os.Args[0])
+	t.Setenv("SNAPREF_HOME", t.TempDir())
+	t.Setenv("SNAPREF_CHROME", os.Args[0])
 	previousProbe := probeRuntimeVersion
 	probeRuntimeVersion = func(string) (string, error) { return "Chromium 132.0.6834.0", nil }
 	t.Cleanup(func() { probeRuntimeVersion = previousProbe })
@@ -70,8 +70,8 @@ func TestResolveRuntimeUsesExplicitExternalOnly(t *testing.T) {
 
 func TestInstalledRuntimeVerificationAndSelection(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("PAGESKEIN_HOME", home)
-	t.Setenv("PAGESKEIN_CHROME", "")
+	t.Setenv("SNAPREF_HOME", home)
+	t.Setenv("SNAPREF_CHROME", "")
 	t.Setenv("NDEV_BROWSER_CHROME", "")
 	platform, err := runtimePlatform()
 	if err != nil {
@@ -160,7 +160,7 @@ func TestContainedRuntimePathRejectsTraversal(t *testing.T) {
 func TestHeadlessShellAcceptanceMustMatchVersionsAndThresholds(t *testing.T) {
 	useRuntimeTestBuildVersion(t)
 	home := t.TempDir()
-	t.Setenv("PAGESKEIN_HOME", home)
+	t.Setenv("SNAPREF_HOME", home)
 	platform, err := runtimePlatform()
 	if err != nil {
 		t.Fatal(err)
@@ -201,14 +201,14 @@ func TestHeadlessShellAcceptanceMustMatchVersionsAndThresholds(t *testing.T) {
 	if err := writeJSONAtomic(path, acceptance, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	acceptance.ConsumerEvidence.PageSkeinBuildVersion = "other-build"
+	acceptance.ConsumerEvidence.SnapRefBuildVersion = "other-build"
 	if err := writeJSONAtomic(path, acceptance, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if headlessShellAccepted(platform, selections) {
 		t.Fatal("cross-build consumer evidence accepted")
 	}
-	acceptance.ConsumerEvidence.PageSkeinBuildVersion = runtimeTestBuildVersion
+	acceptance.ConsumerEvidence.SnapRefBuildVersion = runtimeTestBuildVersion
 	if err := writeJSONAtomic(path, acceptance, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -219,7 +219,7 @@ func TestHeadlessShellAcceptanceMustMatchVersionsAndThresholds(t *testing.T) {
 }
 
 func TestRuntimeKindLocksSerializeAndHonorTimeout(t *testing.T) {
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
+	t.Setenv("SNAPREF_HOME", t.TempDir())
 	unlock, err := acquireRuntimeKindLocks([]RuntimeKind{RuntimeChromeForTesting}, time.Second)
 	if err != nil {
 		t.Fatal(err)
@@ -252,8 +252,8 @@ func TestRuntimeLockKindsCoverAutomaticResolution(t *testing.T) {
 
 func TestResolveRuntimeAutoRoutesVersionMatchedManagedCapabilities(t *testing.T) {
 	useRuntimeTestBuildVersion(t)
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
-	t.Setenv("PAGESKEIN_CHROME", "")
+	t.Setenv("SNAPREF_HOME", t.TempDir())
+	t.Setenv("SNAPREF_CHROME", "")
 	t.Setenv("NDEV_BROWSER_CHROME", "")
 	platform, err := runtimePlatform()
 	if err != nil {
@@ -314,7 +314,7 @@ func TestRuntimeManifestIdentityValidationMatrix(t *testing.T) {
 	}
 	for name, mutate := range mutations {
 		t.Run(name, func(t *testing.T) {
-			t.Setenv("PAGESKEIN_HOME", t.TempDir())
+			t.Setenv("SNAPREF_HOME", t.TempDir())
 			platform, err := runtimePlatform()
 			if err != nil {
 				t.Fatal(err)
@@ -343,7 +343,7 @@ func TestRuntimeManifestIdentityValidationMatrix(t *testing.T) {
 }
 
 func TestListRuntimeRecordsSortsVersionsDeterministically(t *testing.T) {
-	t.Setenv("PAGESKEIN_HOME", t.TempDir())
+	t.Setenv("SNAPREF_HOME", t.TempDir())
 	platform, err := runtimePlatform()
 	if err != nil {
 		t.Fatal(err)

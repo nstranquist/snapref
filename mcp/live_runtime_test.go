@@ -5,12 +5,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/nstranquist/pageskein/browser"
+	"github.com/nstranquist/snapref/browser"
 )
 
 func TestLiveManagedHeadlessShellStdioSmoke(t *testing.T) {
-	if os.Getenv("PAGESKEIN_MCP_LIVE") != "1" {
-		t.Skip("set PAGESKEIN_MCP_LIVE=1 to run the managed Headless Shell MCP smoke")
+	if os.Getenv("SNAPREF_MCP_LIVE") != "1" {
+		t.Skip("set SNAPREF_MCP_LIVE=1 to run the managed Headless Shell MCP smoke")
 	}
 	receipt, err := RunRuntimeConsumerSmoke(context.Background(), func(opts browser.OpenOptions) (*browser.Session, error) {
 		session, err := browser.Open(opts)

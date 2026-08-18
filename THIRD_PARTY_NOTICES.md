@@ -1,6 +1,6 @@
 # Third-party notices
 
-PageSkein release archives include the license texts for the Go standard
+SnapRef release archives include the license texts for the Go standard
 library and every external module compiled into the CLI or its release builder.
 The copied texts are under `third_party/licenses/`.
 
@@ -20,7 +20,11 @@ The reviewed dependency set is:
 - `go.starlark.net` `v0.0.0-20260613233743-8ba36ccb83fb` —
   BSD-3-Clause;
 - `go.yaml.in/yaml/v3` `v3.0.4` — MIT and Apache-2.0;
-- `golang.org/x/sys` `v0.44.0` — BSD-3-Clause, with its patent grant
+- `golang.org/x/sys` `v0.47.0` — BSD-3-Clause, with its patent grant
+  included;
+- `golang.org/x/image` `v0.35.0` — BSD-3-Clause, with its patent grant
+  included;
+- `golang.org/x/text` `v0.33.0` — BSD-3-Clause, with its patent grant
   included;
 - the Go standard library — BSD-3-Clause, with its patent grant included.
 
@@ -32,7 +36,7 @@ contract pins that exact module identity.
 authorities for the exact module graph and build toolchain. The release
 checklist requires a fresh graph review before publication.
 
-PageSkein can explicitly provision Google Chrome for Testing and Chrome
+SnapRef can explicitly provision Google Chrome for Testing and Chrome
 Headless Shell from Google's official availability metadata. Those browser
-artifacts are not bundled in PageSkein source or release archives. Operators
+artifacts are not bundled in SnapRef source or release archives. Operators
 must review and comply with the upstream artifact terms before installation.

@@ -1,6 +1,6 @@
 schema_version: 1
-id: product.pageskein
-name: PageSkein
+id: product.snapref
+name: SnapRef
 surface: products
 kind: product
 status: experimental
@@ -18,6 +18,6 @@ checks:
   - name: verify-release
     command: [make, verify-release]
   - name: self-test
-    command: [go, run, ./cmd/pageskein, self-test]
+    command: [go, run, ./cmd/snapref, self-test]
 description: Local browser automation release candidate with isolated managed runtimes, revision-bound refs, policy gates, and reproducible artifacts.
 portfolio_manifest: portfolio/manifest.yaml

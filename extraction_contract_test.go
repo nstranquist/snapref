@@ -1,4 +1,4 @@
-package pageskein_test
+package snapref_test
 
 import (
 	"crypto/sha256"
@@ -30,7 +30,7 @@ func TestExtractionContract(t *testing.T) {
 	if err := json.Unmarshal(body, &contract); err != nil {
 		t.Fatal(err)
 	}
-	if contract.SchemaVersion != 1 || contract.ProductID != "product.pageskein" {
+	if contract.SchemaVersion != 1 || contract.ProductID != "product.snapref" {
 		t.Fatalf("unexpected extraction contract: %+v", contract)
 	}
 	if contract.Algorithm != "sha256:path-nul-portable-mode-nul-content-nul:v2" {
@@ -52,7 +52,7 @@ func sharedSourceDigest(root string) (string, error) {
 		"catalog.yaml":                true,
 		"coverage.out":                true,
 		"extraction_contract_test.go": true,
-		"pageskein":                   true,
+		"snapref":                   true,
 		"standalone_contract_test.go": true,
 	}
 	excludedDirs := map[string]bool{

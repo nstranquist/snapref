@@ -5,7 +5,7 @@
   "method": "same local fixture; snapshot payload bytes/4 is an explicit token approximation; replay compares unchanged snapshots; stale-ref test changes the button accessible name before using the old ref",
   "providers": [
     {
-      "provider": "PageSkein",
+      "provider": "SnapRef",
       "version": "0.1.0-rc.1",
       "snapshot_bytes": 764,
       "approx_snapshot_tokens": 191,
