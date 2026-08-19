@@ -25,8 +25,7 @@ name from any extractor.
 2. Use top-level `function name() { … }` declarations. Avoid setting
    global side-effects (`window.foo = …`) — the loader wraps everything
    in an IIFE so globals don't leak across calls.
-3. Re-run any extractor that uses the helper; no SnapRef or `ndev`
-   rebuild is needed.
+3. Re-run any extractor that uses the helper; no SnapRef rebuild is needed.
 
 ## Why this matters
 

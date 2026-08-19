@@ -25,6 +25,18 @@ func setBrowserHome(t *testing.T) string {
 	return home
 }
 
+func TestSessionRootPrefersSnapRefOverNDev(t *testing.T) {
+	t.Setenv("SNAPREF_HOME", "/tmp/snapref-home")
+	t.Setenv("NDEV_BROWSER_HOME", "/tmp/ndev-home")
+	got, err := SessionRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "/tmp/snapref-home" {
+		t.Fatalf("SessionRoot = %q, want SNAPREF_HOME", got)
+	}
+}
+
 func TestValidateSessionName(t *testing.T) {
 	good := []string{"foo", "foo-bar", "foo_bar", "abc123", "a"}
 	bad := []string{"", "Foo", "_bar", "../etc", "a/b", "with space", "1" + stringRepeat("x", 64)}

@@ -5,9 +5,17 @@ import (
 	"time"
 )
 
+func TestHotJSONLPrefersSnapRefEnv(t *testing.T) {
+	t.Setenv("SNAPREF_JSONL_MAX_BYTES", "12")
+	t.Setenv("NDEV_JSONL_MAX_BYTES", "1048576")
+	if got := hotJSONLMaxBytes(); got != 12 {
+		t.Fatalf("hotJSONLMaxBytes = %d, want 12", got)
+	}
+}
+
 func TestAppendEventFamilySurvivesRotate(t *testing.T) {
 	t.Setenv("SNAPREF_HOME", t.TempDir())
-	t.Setenv("NDEV_JSONL_MAX_BYTES", "80")
+	t.Setenv("SNAPREF_JSONL_MAX_BYTES", "80")
 	for i := 0; i < 4; i++ {
 		if err := AppendEvent(ObserverEvent{
 			Kind:    KindCommand,
@@ -59,7 +67,7 @@ func TestAppendEventFamilySurvivesRotate(t *testing.T) {
 
 func TestObserveStartAtEndAfterRotateDoesNotReplayFamily(t *testing.T) {
 	t.Setenv("SNAPREF_HOME", t.TempDir())
-	t.Setenv("NDEV_JSONL_MAX_BYTES", "80")
+	t.Setenv("SNAPREF_JSONL_MAX_BYTES", "80")
 	for i := 0; i < 4; i++ {
 		if err := AppendEvent(ObserverEvent{
 			Kind:    KindCommand,
@@ -85,7 +93,7 @@ func TestObserveStartAtEndAfterRotateDoesNotReplayFamily(t *testing.T) {
 	if next != end {
 		t.Fatalf("observe cursor = %d, want live end %d", next, end)
 	}
-	t.Setenv("NDEV_JSONL_MAX_BYTES", "1048576")
+	t.Setenv("SNAPREF_JSONL_MAX_BYTES", "1048576")
 	if err := AppendEvent(ObserverEvent{
 		Kind:    KindCommand,
 		Session: "s",
@@ -104,7 +112,7 @@ func TestObserveStartAtEndAfterRotateDoesNotReplayFamily(t *testing.T) {
 
 func TestSnapshotStatsFamilySurvivesRotate(t *testing.T) {
 	t.Setenv("SNAPREF_HOME", t.TempDir())
-	t.Setenv("NDEV_JSONL_MAX_BYTES", "80")
+	t.Setenv("SNAPREF_JSONL_MAX_BYTES", "80")
 	for i := 0; i < 4; i++ {
 		if err := AppendSnapshotEvent("atlas", &PageSnapshot{URL: "x", Matched: 2, Returned: 2, DurationMS: 1}); err != nil {
 			t.Fatal(err)

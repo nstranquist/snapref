@@ -15,7 +15,10 @@ import (
 const hotJSONLDefaultMax int64 = 64 << 10
 
 func hotJSONLMaxBytes() int64 {
-	raw := strings.TrimSpace(os.Getenv("NDEV_JSONL_MAX_BYTES"))
+	raw := strings.TrimSpace(os.Getenv("SNAPREF_JSONL_MAX_BYTES"))
+	if raw == "" {
+		raw = strings.TrimSpace(os.Getenv("NDEV_JSONL_MAX_BYTES"))
+	}
 	if raw == "" {
 		return hotJSONLDefaultMax
 	}

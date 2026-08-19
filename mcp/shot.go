@@ -90,11 +90,7 @@ func (s *server) runProductRecord(session, action, path, preset, title string) (
 	}
 	switch action {
 	case "start":
-		st, err := browser.BeginScreencast(session, 0, 1280, 720, 70)
-		if err != nil {
-			return err.Error(), true
-		}
-		if err := browser.StartLiveScreencast(sess, st.Dir, 1280, 720, 70); err != nil {
+		if _, err := browser.StartInProcessScreencast(sess, 1280, 720, 70); err != nil {
 			return err.Error(), true
 		}
 		return "recording started: " + session, false

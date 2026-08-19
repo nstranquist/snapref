@@ -274,8 +274,8 @@ func liveCommandLogCursor(path string) int64 {
 }
 
 // ReadCommandEventsAfter tails the live command log after byte offset.
-// Rotated gzip siblings are not part of the tail. ndev browser observe starts
-// at CommandEventLogSize() (end of live); after a rotate that size is 0 and
+// Rotated gzip siblings are not part of the tail. Observe starts at
+// CommandEventLogSize() (end of live); after a rotate that size is 0 and
 // this must return 0 new events, not the archived family.
 func ReadCommandEventsAfter(offset int64) ([]ObserverEvent, int64, error) {
 	path, err := CommandEventLogPath()

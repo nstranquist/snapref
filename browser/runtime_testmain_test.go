@@ -12,16 +12,9 @@ import (
 func requireManagedChromeForTesting(t *testing.T) {
 	t.Helper()
 	isolatedHome := t.TempDir()
-	home := os.Getenv("NDEV_BROWSER_HOME")
-	if home == "" {
-		home = os.Getenv("SNAPREF_HOME")
-	}
-	if home == "" {
-		userHome, err := os.UserHomeDir()
-		if err != nil {
-			t.Skipf("managed Chrome for Testing unavailable: resolve browser home: %v", err)
-		}
-		home = filepath.Join(userHome, ".nicos-dev", "browser")
+	home, err := SessionRoot()
+	if err != nil {
+		t.Skipf("managed Chrome for Testing unavailable: resolve browser home: %v", err)
 	}
 	runtimes := filepath.Join(home, "runtimes")
 	if info, err := os.Stat(runtimes); err != nil || !info.IsDir() {

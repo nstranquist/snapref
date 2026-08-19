@@ -10,15 +10,9 @@ go install ./cmd/snapref
 snapref self-test
 ```
 
-Status: `0.2.0-rc.1`, local release candidate. The source is dogfooded by the
-`ndev browser` adapter, but no public repository/tag has been published and
-Windows support is not advertised until the physical Windows+Chrome gate passes.
-
-**Routing:** for daily agent automation inside nicos-tools use `ndev browser`
-(the adapter). Use this package when changing the engine, running
-`snapref self-test`, or cutting a SemVer release of the core. The nicos-tools
-factory has a repository-owned `.agents/skills/ndev-browser/SKILL.md` routing
-guide; that private guide is not part of this standalone module.
+Status: `0.2.0-rc.1`, local release candidate. No public repository or tag has
+been published. Windows support is not advertised until a physical
+Windows+Chrome gate passes.
 
 ## Packages
 
@@ -28,9 +22,8 @@ guide; that private guide is not part of this standalone module.
 - `mcp`: policy-gated MCP stdio server;
 - `cmd/snapref`: standalone CLI and live self-test.
 
-The standalone `skill` and `job-posting` commands emit generic typed extraction.
-JobKit, workspace/demo, companion, and private product handoffs remain in the
-`ndev browser` adapter.
+The standalone `skill` and `job-posting` commands emit generic typed extraction
+only. Host-specific product handoffs are outside this module.
 
 ## Golden path
 
@@ -110,12 +103,55 @@ protect against an untrusted process that changes the directory concurrently.
 `EXTRACTION.json` pins a digest of every shared source path, canonical regular
 file mode, and file byte. Windows checkout permissions are normalized to the
 repository's required `0644` mode; other platforms fail on permission drift.
-The extraction test fails when the factory and standalone source sets are not
-synchronized through a reviewed digest update.
+A digest mismatch means the checked-out tree drifted from the reviewed source
+lock and must be resynchronized before a release.
 
 The versioned public artifact contracts live in `schemas/telemetry-v2.schema.json`
 and `schemas/script-run-v2.schema.json`. Each release archive includes both
 schemas and `docs/VERSIONING.md`.
+
+## Usage
+
+```sh
+snapref open demo
+snapref exec demo navigate https://example.com
+snapref exec demo snapshot --wait-for-selector body --settle 1s
+snapref exec demo click 'sr-…:e1'
+snapref close demo --purge-profile
+snapref mcp
+```
+
+`snapshot` is the discovery default. Act on the newest revision-bound ref.
+`eval` is an escape hatch, not the discovery path. MCP drive, host-read,
+host-write, and origin grants are separate explicit authorities.
+
+## Configuration
+
+| Variable | Purpose |
+| --- | --- |
+| `SNAPREF_HOME` | Session, profile, recording, and telemetry root (default `~/.snapref/browser`) |
+| `SNAPREF_SKILLS` | Skill directory (default `~/.snapref/skills`) |
+| `SNAPREF_CHROME` | Explicit external Chromium path; never a personal-browser search |
+| `SNAPREF_BROWSER_IDLE_TIMEOUT` | Named-session idle lease (default `10m`) |
+| `SNAPREF_JSONL_MAX_BYTES` | Hot telemetry rotate threshold (default 64KiB; `0` disables) |
+| `NDEV_JSONL_MAX_BYTES` | Compatibility alias for `SNAPREF_JSONL_MAX_BYTES` (host adapters) |
+| `SNAPREF_MCP_ALLOW_DRIVE` | MCP actuation |
+| `SNAPREF_MCP_ALLOW_HOST_READ` | MCP caller-selected playbook reads |
+| `SNAPREF_MCP_ALLOW_HOST_WRITE` | MCP caller-selected screenshot/pack paths |
+| `SNAPREF_MCP_ALLOW_ORIGINS` | MCP navigate/fetch allowlist |
+| `SNAPREF_DEBUG` | Chrome stderr |
+
+Runtime install is the only command that downloads. Recording packs that
+encode video or GIF require `ffmpeg` on PATH; still-shot packs do not.
+
+## Troubleshooting
+
+- `no Chromium-class browser found`: run `snapref runtime install --runtime chrome-for-testing --channel stable`.
+- Session missing after idle: named sessions expire after 10 minutes; the profile remains until `close --purge-profile` or `gc --apply`.
+- Stale executable ref: take a new `snapshot` and use the newest `sr-…` ref.
+- MCP actuation refused: set `SNAPREF_MCP_ALLOW_DRIVE=1` (or `--allow-drive`) and an origin allowlist if you restrict hosts.
+- `already recording` after a crash: the next in-process start reclaims abandoned in-process state. A detached start that failed before a PID was stamped must be removed: delete `$SNAPREF_HOME/recordings/<name>` (default `~/.snapref/browser/recordings/<name>`). If a detached PID is still alive, stop that process first.
+- Video encode fails: install `ffmpeg`; still packs do not need it. The CLI prints a bounded ffmpeg stderr on failure.
 
 Apache-2.0. See `SECURITY.md`, `docs/VERSIONING.md`, `NOTICE`,
 `THIRD_PARTY_NOTICES.md`, and the bundled `third_party/licenses/` texts

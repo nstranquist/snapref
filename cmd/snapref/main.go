@@ -353,9 +353,9 @@ func parseRuntimeBenchmarkFlags(args []string) (int, error) {
 		switch {
 		case args[i] == "--json":
 		case args[i] == "--record":
-			return 0, errors.New("runtime benchmark: standalone recording is unavailable; use ndev browser runtime consumer-evidence and benchmark --record")
+			return 0, errors.New("runtime benchmark: standalone recording is unavailable; acceptance recording is not part of this module")
 		case args[i] == "--consumer-evidence" || strings.HasPrefix(args[i], "--consumer-evidence="):
-			return 0, errors.New("runtime benchmark: standalone consumer evidence is unavailable; use ndev browser runtime consumer-evidence")
+			return 0, errors.New("runtime benchmark: standalone consumer evidence is unavailable; acceptance recording is not part of this module")
 		case args[i] == "--samples" && i+1 < len(args):
 			i++
 			value, err := strconv.Atoi(args[i])
@@ -794,9 +794,9 @@ Usage:
   snapref exec <session> type <selector-or-ref> <text>
   snapref exec <session> press <key>
   snapref exec <session> screenshot [path]
-	snapref skill <url> [--runtime <kind>] [--json]
-	snapref job-posting <greenhouse|lever|ashby-url> [--runtime <kind>] [--json]
-	snapref self-test [--runtime <kind>]
+  snapref skill <url> [--runtime <kind>] [--json]
+  snapref job-posting <greenhouse|lever|ashby-url> [--runtime <kind>] [--json]
+  snapref self-test [--runtime <kind>]
   snapref mcp
   snapref version
 
@@ -818,11 +818,10 @@ const runtimeHelpText = `Usage:
   snapref runtime install --runtime <headless-shell|chrome-for-testing> (--channel stable|--version <version>)
   snapref runtime list
   snapref runtime verify (--all|--runtime <managed-kind>)
-	snapref runtime benchmark [--samples 30]
+  snapref runtime benchmark [--samples 30]
   snapref runtime prune [--runtime <managed-kind>] [--keep 2] [--apply]
 
 Install is the only operation that downloads. Standalone benchmark is always
-diagnostic and non-mutating; acceptance recording is owned by the NDev adapter,
-which produces evidence inside the exact executable it attests. Prune mutates
-only when --apply is present.
+diagnostic and non-mutating. Acceptance recording is not part of this module.
+Prune mutates only when --apply is present.
 `

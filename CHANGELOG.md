@@ -7,6 +7,10 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ### Changed
 
+- Shot-pack schema is `snapref.shot-pack.v1` and default directories are
+  `snapref-shots/`. Abandoned in-process recordings (PID 0, no live goroutine)
+  are reclaimed instead of blocking the next start. Telemetry rotate reads
+  `SNAPREF_JSONL_MAX_BYTES` first.
 - Public product identity is now SnapRef (`snapref` CLI, `SNAPREF_*` environment
   prefix, module `github.com/nstranquist/snapref`, catalog `product.snapref`).
   The factory adapter remains `ndev browser`.

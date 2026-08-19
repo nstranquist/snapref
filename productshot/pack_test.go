@@ -7,6 +7,16 @@ import (
 	"testing"
 )
 
+func TestDefaultDirUsesSnapRefPrefix(t *testing.T) {
+	dir := DefaultDir("https://example.com/app", []Preset{PresetGitHubReadme})
+	if !strings.HasPrefix(dir, "snapref-shots"+string(os.PathSeparator)) && !strings.HasPrefix(dir, "snapref-shots/") {
+		t.Fatalf("DefaultDir = %q, want snapref-shots/...", dir)
+	}
+	if strings.Contains(dir, "ndev-shots") {
+		t.Fatalf("DefaultDir leaked factory path: %q", dir)
+	}
+}
+
 func TestWritePackGitHubReadme(t *testing.T) {
 	dir := t.TempDir()
 	pack, err := WritePack(dir, Sources{

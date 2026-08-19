@@ -6,7 +6,7 @@ The copied texts are under `third_party/licenses/`.
 
 The reviewed dependency set is:
 
-- `github.com/nstranquist/processtree` at the local `v0.0.0` release
+- `github.com/nstranquist/processtree` at the local `v0.1.0-rc.1` release
   candidate — MIT;
 - `github.com/chromedp/cdproto`
   `v0.0.0-20260321001828-e3e3800016bc` — MIT;

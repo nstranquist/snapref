@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const ManifestSchema = "nicos.browser.shot-pack.v1"
+const ManifestSchema = "snapref.shot-pack.v1"
 
 // Artifact is one file in a pack.
 type Artifact struct {
@@ -226,7 +226,7 @@ func DefaultDir(sourceURL string, presets []Preset) string {
 	} else if len(expanded) > 1 {
 		name = "all"
 	}
-	return filepath.Join("ndev-shots", fmt.Sprintf("%s-%s-%s", host, name, time.Now().UTC().Format("20060102-150405")))
+	return filepath.Join("snapref-shots", fmt.Sprintf("%s-%s-%s", host, name, time.Now().UTC().Format("20060102-150405")))
 }
 
 func hostFromURL(raw string) string {

@@ -33,14 +33,11 @@ snapref runtime install --runtime chrome-for-testing --channel stable
 snapref runtime install --runtime headless-shell --channel stable
 snapref runtime verify --all
 snapref runtime benchmark --samples 30
-ndev browser runtime consumer-evidence --out ~/.nicos-dev/browser/runtimes/runtime-consumer-evidence.json
-ndev browser runtime benchmark --samples 30 --consumer-evidence ~/.nicos-dev/browser/runtimes/runtime-consumer-evidence.json --record
 snapref doctor
 ```
 
-Standalone SnapRef benchmarking is diagnostic and non-mutating. NDev owns
-acceptance recording because it can produce the required consumer evidence in
-the exact executable being authorized.
+Standalone SnapRef benchmarking is diagnostic and non-mutating. Acceptance
+recording is not part of this module.
 
 Installed artifacts, immutable manifests, selections, and acceptance evidence
 live under `<browser-home>/runtimes`. Manifests contain locally observed archive
@@ -48,9 +45,9 @@ and executable SHA-256 values; those are integrity records, not publisher
 signatures. Normal launch, skill, script, MCP, and self-test operations never
 download or update a runtime.
 
-The `NDEV_BROWSER_*` environment aliases remain only so the dogfooded Nicos
-adapter can migrate without breaking existing sessions. New standalone usage
-should use `SNAPREF_*`.
+`NDEV_BROWSER_*` remains a compatibility alias for existing host adapters.
+`NDEV_JSONL_MAX_BYTES` is the matching alias for `SNAPREF_JSONL_MAX_BYTES`.
+New standalone usage should use `SNAPREF_*`.
 
 Snapshots retry an initially empty interactive inventory for 750ms. A known SPA
 should additionally pass a readiness selector; `Settle` requires two equal,

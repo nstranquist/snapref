@@ -226,9 +226,9 @@ func isSyntheticFixtureEvent(ev ObserverEvent) bool {
 			return true
 		}
 	}
-	// Pre-fix cmd/ndev-go error-class tests escaped into the operator store when
-	// adapter initialization let a stale SNAPREF_HOME override isolated test
-	// homes. Preserve the raw rows, but omit only the exact synthetic command.
+	// Pre-fix error-class tests escaped into the operator store when a stale
+	// SNAPREF_HOME overrode isolated test homes. Preserve the raw rows, but
+	// omit only the exact synthetic command.
 	if ev.Command.Command != "exec.click" || ev.Command.OK || ev.Command.ExitCode != 1 ||
 		ev.Command.Data["selector"] != "#x" {
 		return false

@@ -2,7 +2,7 @@ module github.com/nstranquist/snapref
 
 go 1.26
 
-require github.com/nstranquist/processtree v0.0.0
+require github.com/nstranquist/processtree v0.1.0-rc.1
 
 replace github.com/nstranquist/processtree => ../processtree
 

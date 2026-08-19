@@ -1,8 +1,10 @@
 package productshot
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -130,9 +132,17 @@ func EncodeVideo(ctx context.Context, framesDir, outDir string, spec VideoSpec) 
 
 func runFFmpeg(ctx context.Context, bin string, args []string) error {
 	cmd := commandContext(ctx, bin, args...)
-	cmd.Stderr = nil
-	cmd.Stdout = nil
+	var stderr bytes.Buffer
+	cmd.Stdout = io.Discard
+	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
+		detail := strings.TrimSpace(stderr.String())
+		if len(detail) > 2000 {
+			detail = detail[:2000]
+		}
+		if detail != "" {
+			return fmt.Errorf("ffmpeg %s: %w: %s", strings.Join(args, " "), err, detail)
+		}
 		return fmt.Errorf("ffmpeg %s: %w", strings.Join(args, " "), err)
 	}
 	return nil

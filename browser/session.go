@@ -82,7 +82,7 @@ type IdleExpiryResult struct {
 }
 
 // SetSessionIdleTimeout records the owner-defined idle lease for a persistent
-// session. SnapRef itself does not choose a policy; adapters such as ndev can
+// session. SnapRef itself does not choose a policy; host adapters can
 // attach a watchdog and make that lifecycle visible in the session record.
 func SetSessionIdleTimeout(name string, timeout time.Duration) (*Session, error) {
 	return SetSessionIdlePolicy(name, timeout, false)
@@ -274,7 +274,7 @@ func SessionRoot() (string, error) {
 	if env := os.Getenv("SNAPREF_HOME"); env != "" {
 		return env, nil
 	}
-	// NDEV_BROWSER_HOME is the compatibility seam for the shipped ndev adapter.
+	// NDEV_BROWSER_HOME is a compatibility alias for host adapters.
 	// SnapRef-native callers should prefer SNAPREF_HOME.
 	if env := os.Getenv("NDEV_BROWSER_HOME"); env != "" {
 		return env, nil

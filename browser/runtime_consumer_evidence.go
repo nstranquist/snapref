@@ -85,7 +85,7 @@ type RuntimeConsumerCheck struct {
 	ReceiptSHA256 string                 `json:"receipt_sha256"`
 }
 
-// RuntimeConsumerResult is the bounded input accepted from the NDev consumer
+// RuntimeConsumerResult is the bounded input accepted from a host consumer
 // smoke orchestrator. Status is derived from ExitCode when receipts are written.
 type RuntimeConsumerResult struct {
 	Surface    RuntimeConsumerSurface
