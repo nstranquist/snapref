@@ -175,12 +175,12 @@ func (s *server) tools() []map[string]any {
 			"name":        "browser_shot",
 			"description": "Package the session's current page as publish-ready product screenshots (GitHub README / Product Hunt / OG). Writes a directory pack. A caller-selected path requires SNAPREF_MCP_ALLOW_HOST_WRITE=1 / --allow-host-write.",
 			"inputSchema": sessionSchema(map[string]any{
-				"preset":          map[string]any{"type": "string", "description": "github-readme, product-hunt, og, twitter, raw, or all"},
-				"title":           map[string]any{"type": "string"},
-				"caption":         map[string]any{"type": "string"},
-				"theme":           map[string]any{"type": "string", "description": "light or dark"},
-				"include_mobile":  map[string]any{"type": "boolean"},
-				"path":            map[string]any{"type": "string", "description": "Optional output directory; disabled unless host-write authority is explicitly enabled"},
+				"preset":         map[string]any{"type": "string", "description": "github-readme, product-hunt, og, twitter, raw, or all"},
+				"title":          map[string]any{"type": "string"},
+				"caption":        map[string]any{"type": "string"},
+				"theme":          map[string]any{"type": "string", "description": "light or dark"},
+				"include_mobile": map[string]any{"type": "boolean"},
+				"path":           map[string]any{"type": "string", "description": "Optional output directory; disabled unless host-write authority is explicitly enabled"},
 			}),
 		},
 		{

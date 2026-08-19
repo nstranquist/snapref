@@ -57,8 +57,8 @@ func passingRuntimeConsumerEvidence(t *testing.T, platform, shellVersion, cftVer
 		PolicyVersion: runtimeAcceptancePolicyVersion,
 		Platform:      platform, HeadlessShellVersion: shellVersion, ChromeForTestingVersion: cftVersion,
 		SnapRefBuildVersion: runtimeTestBuildVersion,
-		TestedAt:              now,
-		Checks:                checks,
+		TestedAt:            now,
+		Checks:              checks,
 	}
 }
 

@@ -15,13 +15,13 @@ import (
 )
 
 type themeColors struct {
-	bgTop, bgBot       color.NRGBA
-	window             color.NRGBA
-	titleBar           color.NRGBA
-	border             color.NRGBA
-	title              color.NRGBA
-	caption            color.NRGBA
-	shadow             color.NRGBA
+	bgTop, bgBot color.NRGBA
+	window       color.NRGBA
+	titleBar     color.NRGBA
+	border       color.NRGBA
+	title        color.NRGBA
+	caption      color.NRGBA
+	shadow       color.NRGBA
 }
 
 func colorsFor(theme Theme) themeColors {

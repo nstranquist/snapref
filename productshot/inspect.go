@@ -42,14 +42,14 @@ type CheckedAsset struct {
 
 // ProductHuntKit is the fail-closed upload checklist for a shot pack.
 type ProductHuntKit struct {
-	PackDir     string          `json:"pack_dir"`
-	Schema      string          `json:"schema,omitempty"`
-	Title       string          `json:"title,omitempty"`
-	SourceURL   string          `json:"source_url,omitempty"`
-	ComposerURL string          `json:"composer_url"`
-	Assets      []CheckedAsset  `json:"assets"`
-	Ready       bool            `json:"ready"`
-	Errors      []string        `json:"errors,omitempty"`
+	PackDir     string         `json:"pack_dir"`
+	Schema      string         `json:"schema,omitempty"`
+	Title       string         `json:"title,omitempty"`
+	SourceURL   string         `json:"source_url,omitempty"`
+	ComposerURL string         `json:"composer_url"`
+	Assets      []CheckedAsset `json:"assets"`
+	Ready       bool           `json:"ready"`
+	Errors      []string       `json:"errors,omitempty"`
 }
 
 // LoadPack reads a shot-pack directory written by WritePack.

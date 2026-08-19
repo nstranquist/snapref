@@ -104,7 +104,7 @@ type runtimeConsumerReceipt struct {
 	Platform                string                 `json:"platform"`
 	HeadlessShellVersion    string                 `json:"headless_shell_version"`
 	ChromeForTestingVersion string                 `json:"chrome_for_testing_version"`
-	SnapRefBuildVersion   string                 `json:"snapref_build_version"`
+	SnapRefBuildVersion     string                 `json:"snapref_build_version"`
 	StartedAt               time.Time              `json:"started_at"`
 	FinishedAt              time.Time              `json:"finished_at"`
 	Command                 []string               `json:"command"`
@@ -121,7 +121,7 @@ type RuntimeConsumerEvidence struct {
 	Platform                string                 `json:"platform"`
 	HeadlessShellVersion    string                 `json:"headless_shell_version"`
 	ChromeForTestingVersion string                 `json:"chrome_for_testing_version"`
-	SnapRefBuildVersion   string                 `json:"snapref_build_version"`
+	SnapRefBuildVersion     string                 `json:"snapref_build_version"`
 	TestedAt                time.Time              `json:"tested_at"`
 	Checks                  []RuntimeConsumerCheck `json:"checks"`
 }

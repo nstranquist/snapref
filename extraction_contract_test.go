@@ -52,7 +52,7 @@ func sharedSourceDigest(root string) (string, error) {
 		"catalog.yaml":                true,
 		"coverage.out":                true,
 		"extraction_contract_test.go": true,
-		"snapref":                   true,
+		"snapref":                     true,
 		"standalone_contract_test.go": true,
 	}
 	excludedDirs := map[string]bool{
