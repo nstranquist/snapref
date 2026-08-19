@@ -22,6 +22,22 @@ func TestDemoRefIntegrityFixtureMutatesAccessibleName(t *testing.T) {
 	}
 }
 
+func TestDemoCLIHelp(t *testing.T) {
+	for _, want := range []string{
+		"snapref demo mcp-policy",
+		"snapref demo ref-integrity",
+		"does not launch",
+		"fails closed",
+	} {
+		if !strings.Contains(demoHelpText, want) {
+			t.Fatalf("demo help missing %q:\n%s", want, demoHelpText)
+		}
+	}
+	if strings.Contains(strings.ToLower(demoHelpText), "jobkit") {
+		t.Fatal("demo help leaked JobKit")
+	}
+}
+
 func TestParseDemoRuntime(t *testing.T) {
 	got, err := parseDemoRuntime(nil)
 	if err != nil || got != browser.RuntimeAuto {
