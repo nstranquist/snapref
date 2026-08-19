@@ -12,7 +12,17 @@ go install github.com/nstranquist/snapref/cmd/snapref@v0.2.0-rc.1
 snapref runtime install --runtime chrome-for-testing --channel stable
 snapref runtime install --runtime headless-shell --channel stable
 snapref self-test
+snapref demo mcp-policy
+snapref demo ref-integrity
 ```
+
+`self-test` checks delayed hydration, open shadow roots, and same-origin
+iframes, then clicks all three. `demo mcp-policy` does not launch Chrome.
+`demo ref-integrity` needs a managed runtime.
+
+GitHub Actions `go` does not launch Chrome. The Ubuntu `self-test` job
+installs Chrome for Testing and runs `snapref self-test` plus
+`snapref demo ref-integrity`. `demo mcp-policy` is covered by `go test`.
 
 In a source checkout, `make init` runs the same two runtime installs.
 
@@ -29,6 +39,18 @@ support is not advertised until a physical Windows+Chrome gate passes.
 
 The standalone `skill` and `job-posting` commands emit generic typed extraction
 only. Host-specific product handoffs are outside this module.
+
+## Proofs
+
+These two receipts are the public wedge. They are not example.com YAML.
+
+```sh
+snapref demo mcp-policy
+snapref demo ref-integrity
+```
+
+See `examples/mcp-policy/` and `examples/ref-integrity/`. Talk about SnapRef
+as the kernel under the host adapter, not as a second browser-automation brand.
 
 ## Golden path
 
@@ -86,6 +108,13 @@ downloads.
 
 The live `snapref self-test` verifies hydrated snapshot readiness. It also
 verifies ref actuation across open shadow roots and same-origin frames.
+That command is a machine receipt (`--json`). GitHub Actions runs it on
+Ubuntu after `snapref runtime install --runtime chrome-for-testing`. Local
+`make verify` does not launch Chrome.
+
+`snapref demo mcp-policy` is the drive/origin grant receipt. `snapref demo
+ref-integrity` is the stale-ref receipt: snapshot, click `sr-…`, snapshot
+again, old ref fails closed.
 
 `make release-dist` reproducibly builds CGO-free macOS arm64, Linux amd64, and
 Windows amd64 archives with legal/security files and a `SHA256SUMS` manifest.

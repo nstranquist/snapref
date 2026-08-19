@@ -2,5 +2,5 @@
   "schema_version": 1,
   "product_id": "product.snapref",
   "algorithm": "sha256:path-nul-portable-mode-nul-content-nul:v2",
-  "source_sha256": "5d24c8d79d92e028ab5a6254bc598e5359d219a4ccd42510939956448705ed61"
+  "source_sha256": "25c46e586fb850ed2af9583b634448f745ce4f59a0008a3ac47995e6b66598c6"
 }

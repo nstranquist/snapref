@@ -62,6 +62,8 @@ func run(args []string) error {
 		return extractSkill(args[1:], true)
 	case "self-test":
 		return selfTest(args[1:])
+	case "demo":
+		return demoCommand(args[1:])
 	case "mcp":
 		return serveMCP()
 	case "__watch-session":
@@ -677,15 +679,10 @@ func selfTest(args []string) error {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if r.URL.Path == "/frame" {
-			fmt.Fprint(w, `<!doctype html><button id="frame-action" onclick="this.dataset.clicked='yes'">Frame action</button>`)
+			fmt.Fprint(w, selfTestFrameHTML())
 			return
 		}
-		fmt.Fprint(w, `<!doctype html><title>SnapRef self-test</title><main id="app"></main><div id="shadow-host"></div><iframe id="child-frame" src="/frame"></iframe><script>
-const root = document.querySelector('#shadow-host').attachShadow({mode:'open'});
-root.innerHTML = '<button id="shadow-action">Shadow action</button>';
-root.querySelector('button').onclick = event => event.currentTarget.dataset.clicked = 'yes';
-setTimeout(() => { document.querySelector('#app').innerHTML = '<button id="hydrated">Hydrated action</button>'; }, 200);
-</script>`)
+		fmt.Fprint(w, selfTestPageHTML())
 	}))
 	defer server.Close()
 
@@ -746,6 +743,19 @@ func selfTestSnapshotOptions() browser.SnapshotOptions {
 	}
 }
 
+func selfTestFrameHTML() string {
+	return `<!doctype html><button id="frame-action" onclick="this.dataset.clicked='yes'">Frame action</button>`
+}
+
+func selfTestPageHTML() string {
+	return `<!doctype html><title>SnapRef self-test</title><main id="app"></main><div id="shadow-host"></div><iframe id="child-frame" src="/frame"></iframe><script>
+const root = document.querySelector('#shadow-host').attachShadow({mode:'open'});
+root.innerHTML = '<button id="shadow-action">Shadow action</button>';
+root.querySelector('button').onclick = event => event.currentTarget.dataset.clicked = 'yes';
+setTimeout(() => { document.querySelector('#app').innerHTML = '<button id="hydrated">Hydrated action</button>'; }, 200);
+</script>`
+}
+
 func serveMCP() error {
 	return browsermcp.Serve(os.Stdin, os.Stdout, browsermcp.Options{
 		AllowDrive:     truthy(os.Getenv("SNAPREF_MCP_ALLOW_DRIVE")),
@@ -800,6 +810,8 @@ Usage:
   snapref skill <url> [--runtime <kind>] [--json]
   snapref job-posting <greenhouse|lever|ashby-url> [--runtime <kind>] [--json]
   snapref self-test [--runtime <kind>]
+  snapref demo mcp-policy
+  snapref demo ref-integrity [--runtime <kind>]
   snapref mcp
   snapref version
 

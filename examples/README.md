@@ -1,14 +1,21 @@
 # Examples
 
-These playbooks are synthetic. They do not need a personal browser profile.
+The wedge proofs are `snapref demo` receipts, not public-site YAML.
 
 ```sh
+snapref demo mcp-policy
 snapref runtime install --runtime chrome-for-testing --channel stable
+snapref demo ref-integrity
+```
+
+- [ref-integrity](ref-integrity/README.md): snapshot, click `sr-…`, snapshot again, fail closed
+- [mcp-policy](mcp-policy/README.md): snapshot ungated, click/navigate denied, origin block
+
+`open-and-snapshot.yaml` is a generic playbook sample. It is not the
+interview clip.
+
+```sh
 snapref open demo
 snapref script run examples/open-and-snapshot.yaml --session demo --allow-drive
 snapref close demo --purge-profile
 ```
-
-`open-and-snapshot.yaml` navigates `https://example.com`, waits for `body`,
-takes a snapshot, and asserts the URL contains `example.com`.
-Replace the URL with your own target only in a throwaway checkout.

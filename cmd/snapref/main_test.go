@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,6 +39,38 @@ func TestSelfTestWaitsForHydrationHook(t *testing.T) {
 	}
 }
 
+func TestSelfTestFixtureHasHydrationShadowAndFrame(t *testing.T) {
+	page := selfTestPageHTML()
+	frame := selfTestFrameHTML()
+	for _, want := range []string{"attachShadow", "setTimeout", "child-frame", `id="hydrated"`} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("self-test page missing %q:\n%s", want, page)
+		}
+	}
+	if !strings.Contains(frame, `id="frame-action"`) {
+		t.Fatalf("self-test frame missing frame-action:\n%s", frame)
+	}
+}
+
+func TestExampleWorkflowDocsNameShippedCommands(t *testing.T) {
+	cases := []struct {
+		path string
+		want string
+	}{
+		{filepath.Join("..", "..", "examples", "mcp-policy", "README.md"), "snapref demo mcp-policy"},
+		{filepath.Join("..", "..", "examples", "ref-integrity", "README.md"), "snapref demo ref-integrity"},
+	}
+	for _, tc := range cases {
+		body, err := os.ReadFile(tc.path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(body), tc.want) {
+			t.Fatalf("%s missing %q", tc.path, tc.want)
+		}
+	}
+}
+
 func TestScriptValidateAcceptsExamplePlaybook(t *testing.T) {
 	path := filepath.Join("..", "..", "examples", "open-and-snapshot.yaml")
 	if err := scriptCommand([]string{"validate", path}); err != nil {
@@ -52,8 +85,37 @@ func TestScriptRunRequiresPlaybook(t *testing.T) {
 	}
 }
 
+func TestDemoMCPPolicyReceipt(t *testing.T) {
+	stdout, restore := captureStdout(t)
+	err := demoCommand([]string{"mcp-policy"})
+	restore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := stdout()
+	for _, want := range []string{
+		`"workflow": "mcp-policy"`,
+		`"ok": true`,
+		`"tool": "browser_snapshot"`,
+		`"tool": "browser_click"`,
+		`"driving disabled"`,
+		`"origin not allowlisted`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("demo mcp-policy receipt missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestDemoUnknownWorkflow(t *testing.T) {
+	err := demoCommand([]string{"unknown"})
+	if err == nil || !strings.Contains(err.Error(), "unknown workflow") {
+		t.Fatalf("demo unknown error = %v", err)
+	}
+}
+
 func TestHelpExposesGenericSkillsWithoutNicosHandoff(t *testing.T) {
-	for _, want := range []string{"snapref skill <url>", "snapref job-posting", "snapref script run"} {
+	for _, want := range []string{"snapref skill <url>", "snapref job-posting", "snapref script run", "snapref demo mcp-policy", "snapref demo ref-integrity"} {
 		if !strings.Contains(helpText, want) {
 			t.Fatalf("help missing %q", want)
 		}
@@ -161,4 +223,28 @@ func TestProductionOpenersUseManagedWrapper(t *testing.T) {
 			return true
 		})
 	}
+}
+
+func captureStdout(t *testing.T) (func() string, func()) {
+	t.Helper()
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := os.Stdout
+	os.Stdout = writer
+	done := make(chan string, 1)
+	go func() {
+		var buf strings.Builder
+		_, _ = io.Copy(&buf, reader)
+		done <- buf.String()
+	}()
+	restore := func() {
+		_ = writer.Close()
+		os.Stdout = old
+	}
+	read := func() string {
+		return <-done
+	}
+	return read, restore
 }

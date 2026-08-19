@@ -20,6 +20,8 @@ Rules:
 - Prefer `README.md`, `SECURITY.md`, `docs/ARCHITECTURE.md`, and `contract/`
   over whole-tree searches.
 - `snapref self-test` is the live engine check. It needs a managed runtime.
+- `snapref demo mcp-policy` is the MCP grant receipt and does not launch Chrome.
+- `snapref demo ref-integrity` is the stale-ref receipt. It needs a managed runtime.
 - Public fixtures must be synthetic. Do not commit operator profiles or
   session recordings.
 

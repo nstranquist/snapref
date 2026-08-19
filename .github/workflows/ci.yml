@@ -49,6 +49,29 @@ jobs:
         run: GOWORK=off go test -mod=readonly -run '^TestRelease' ./...
       - name: Windows compile
         run: GOOS=windows GOARCH=amd64 CGO_ENABLED=0 GOWORK=off go test -mod=readonly -run '^$' -exec=true ./...
+      - name: MCP policy demo
+        run: GOWORK=off go run -mod=readonly ./cmd/snapref demo mcp-policy
+
+  self-test:
+    name: live self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SNAPREF_HOME: ${{ github.workspace }}/.snapref-ci
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Install Chrome for Testing
+        run: GOWORK=off go run -mod=readonly ./cmd/snapref runtime install --runtime chrome-for-testing --channel stable
+      - name: Self-test
+        run: GOWORK=off go run -mod=readonly ./cmd/snapref self-test --runtime chrome-for-testing --json
+      - name: Ref-integrity demo
+        run: GOWORK=off go run -mod=readonly ./cmd/snapref demo ref-integrity --runtime chrome-for-testing
 
   secrets:
     name: secrets

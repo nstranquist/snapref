@@ -9,6 +9,8 @@ make verify
 go test ./...
 go run ./cmd/snapref version
 go run ./cmd/snapref self-test
+go run ./cmd/snapref demo mcp-policy
+go run ./cmd/snapref demo ref-integrity
 ```
 
 ## Rules

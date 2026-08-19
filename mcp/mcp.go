@@ -722,7 +722,7 @@ func (s *server) checkOrigin(tool, session, rawurl string) string {
 	if s.originAllowed(rawurl) {
 		return ""
 	}
-	s.audit(tool, session, true, false, "origin not allowlisted: "+rawurl)
+	s.audit(tool, session, false, false, "origin not allowlisted: "+rawurl)
 	return "blocked: " + rawurl + " is not in the navigation allowlist (SNAPREF_MCP_ALLOW_ORIGINS)"
 }
 

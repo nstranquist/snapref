@@ -5,6 +5,17 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ## Unreleased
 
+### Added
+
+- `snapref demo mcp-policy` prints a drive/origin grant receipt through the
+  shipped MCP stdio server. Snapshot runs without drive; click and navigate
+  do not. An origin allowlist refuses off-list hosts.
+- `snapref demo ref-integrity` snapshots a local fixture, clicks the live
+  `sr-…` ref, mutates the node, and proves the same ref fails closed.
+- GitHub Actions Ubuntu `self-test` job installs Chrome for Testing and
+  runs `snapref self-test` plus `demo ref-integrity`. The `go` job still
+  does not launch Chrome.
+
 ### Changed
 
 - ProcessTree `v0.1.0-rc.1` is vendored at `processtree/`. `go.mod` no longer
