@@ -18,9 +18,9 @@ governed release flow is `intent` → `plan` → `apply --input-sha256 <digest>
 --confirm` → review/commit → `tag --confirm`. The reviewed plan supplies the
 digest. Tags use `snapref/v{version}`.
 
-The local release candidate uses the exact sibling ProcessTree replacement in
-`go.mod`. Before publication, require a reviewed ProcessTree SemVer version.
-Update the release-contract test in the same reviewed change.
+ProcessTree `v0.1.0-rc.1` is vendored at `processtree/` inside this module.
+`go.mod` must not contain a `replace` directive. A later reviewed change may
+switch back to a published ProcessTree SemVer once that module has a remote.
 
 Machine-readable events and manifests carry their own integer
 `schema_version`. Consumers must ignore unknown optional fields. Removing a

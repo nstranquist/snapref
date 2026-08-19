@@ -2,10 +2,6 @@ module github.com/nstranquist/snapref
 
 go 1.26
 
-require github.com/nstranquist/processtree v0.1.0-rc.1
-
-replace github.com/nstranquist/processtree => ../processtree
-
 require (
 	github.com/chromedp/cdproto v0.0.0-20260321001828-e3e3800016bc
 	github.com/chromedp/chromedp v0.15.1

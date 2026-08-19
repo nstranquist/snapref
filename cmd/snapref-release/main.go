@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nstranquist/processtree"
+	"github.com/nstranquist/snapref/processtree"
 )
 
 type target struct {

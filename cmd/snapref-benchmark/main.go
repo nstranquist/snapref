@@ -20,7 +20,7 @@ import (
 
 	"github.com/nstranquist/snapref/browser"
 	browsermcp "github.com/nstranquist/snapref/mcp"
-	"github.com/nstranquist/processtree"
+	"github.com/nstranquist/snapref/processtree"
 )
 
 const secretMarker = "snapref-bench-canary"

@@ -1,4 +1,8 @@
-.PHONY: verify verify-release test race vet build cross release-check release-repro release-dist
+.PHONY: init verify verify-release test race vet build cross release-check release-repro release-dist
+
+init:
+	GOWORK=off go run -mod=readonly ./cmd/snapref runtime install --runtime chrome-for-testing --channel stable
+	GOWORK=off go run -mod=readonly ./cmd/snapref runtime install --runtime headless-shell --channel stable
 
 verify: test race vet build cross release-check
 

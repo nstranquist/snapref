@@ -10,6 +10,23 @@ import (
 	"github.com/nstranquist/snapref/contract"
 )
 
+func TestExampleOpenAndSnapshotLoads(t *testing.T) {
+	body, err := os.ReadFile(filepath.Join("..", "examples", "open-and-snapshot.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := LoadYAML(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if p.Name != "open-and-snapshot" || len(p.Steps) != 4 {
+		t.Fatalf("plan = %+v", p)
+	}
+}
+
 func TestLoadYAMLEqualsJSON(t *testing.T) {
 	yamlSrc := []byte(`
 name: capture

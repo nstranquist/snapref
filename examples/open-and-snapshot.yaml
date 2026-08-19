@@ -1,0 +1,16 @@
+name: open-and-snapshot
+session: demo
+screenshot_mode: viewport
+steps:
+  - verb: navigate
+    url: https://example.com
+  - verb: wait
+    selector: body
+    timeout: 10s
+  - verb: snapshot
+    snapshot:
+      wait_for_selector: body
+      settle: 1s
+  - verb: assert_url
+    assert:
+      contains: example.com

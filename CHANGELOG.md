@@ -7,6 +7,8 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ### Changed
 
+- ProcessTree `v0.1.0-rc.1` is vendored at `processtree/`. `go.mod` no longer
+  uses a sibling `replace`.
 - Shot-pack schema is `snapref.shot-pack.v1` and default directories are
   `snapref-shots/`. Abandoned in-process recordings (PID 0, no live goroutine)
   are reclaimed instead of blocking the next start. Telemetry rotate reads

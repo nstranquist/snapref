@@ -7,6 +7,7 @@ cross-platform lifecycle gates.
 
 ```sh
 go install ./cmd/snapref
+make init
 snapref self-test
 ```
 
@@ -28,8 +29,7 @@ only. Host-specific product handoffs are outside this module.
 ## Golden path
 
 ```sh
-snapref runtime install --runtime chrome-for-testing --channel stable
-snapref runtime install --runtime headless-shell --channel stable
+make init
 snapref runtime verify --all
 snapref open demo
 snapref exec demo navigate http://localhost:3000
@@ -109,6 +109,23 @@ lock and must be resynchronized before a release.
 The versioned public artifact contracts live in `schemas/telemetry-v2.schema.json`
 and `schemas/script-run-v2.schema.json`. Each release archive includes both
 schemas and `docs/VERSIONING.md`.
+
+## Architecture
+
+SnapRef is a local engine, not a hosted browser fleet.
+
+- `browser` owns isolated Chromium sessions, CDP, snapshots, revision-bound
+  refs, actionability, recordings, and managed runtimes.
+- `contract` is the typed operation and permission registry.
+- `script` runs YAML/JSON/Starlark plans against an open session.
+- `mcp` is a policy-gated stdio server. Drive, host-read, host-write, and
+  origin grants are separate authorities.
+- `cmd/snapref` is the standalone CLI. Host adapters such as `ndev browser`
+  live outside this module.
+- `processtree` is a vendored MIT copy used only for bounded subprocess
+  cancellation in release and benchmark tools.
+
+See `docs/ARCHITECTURE.md`.
 
 ## Usage
 

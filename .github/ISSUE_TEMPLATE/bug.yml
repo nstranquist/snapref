@@ -1,0 +1,26 @@
+name: Bug
+description: Report a defect in SnapRef
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Do not attach live `~/.snapref` profiles, cookies, recordings, or secrets. Follow SECURITY.md for vulnerabilities.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+    validations:
+      required: true

@@ -106,9 +106,11 @@ func TestReleaseRepositoryContract(t *testing.T) {
 	if !strings.HasPrefix(module, "module github.com/nstranquist/snapref\n") {
 		t.Fatalf("unexpected module identity:\n%s", module)
 	}
-	const localProcessTree = "replace github.com/nstranquist/processtree => ../processtree"
-	if !strings.Contains(module, localProcessTree) || strings.Count(module, "replace ") != 1 {
-		t.Fatalf("local release candidate must have only the sibling ProcessTree replacement:\n%s", module)
+	if strings.Contains(module, "replace ") {
+		t.Fatalf("standalone module must not use a replace directive:\n%s", module)
+	}
+	if strings.Contains(module, "github.com/nstranquist/processtree") {
+		t.Fatalf("ProcessTree must be vendored in this module, not required as a sibling:\n%s", module)
 	}
 	if strings.Contains(module, "nicos.tools/") {
 		t.Fatalf("standalone module contains a private nicos.tools dependency:\n%s", module)
@@ -149,7 +151,6 @@ func validSemanticVersion(version string) bool {
 }
 
 var thirdPartyDependencies = map[string]string{
-	"github.com/nstranquist/processtree": "third_party/licenses/github.com/nstranquist/processtree/LICENSE",
 	"github.com/chromedp/cdproto":        "third_party/licenses/github.com/chromedp/cdproto/LICENSE",
 	"github.com/chromedp/chromedp":       "third_party/licenses/github.com/chromedp/chromedp/LICENSE",
 	"github.com/chromedp/sysutil":        "third_party/licenses/github.com/chromedp/sysutil/LICENSE",
