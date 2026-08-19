@@ -8,9 +8,11 @@ make init
 make verify
 ```
 
-`make verify` runs tests, the race detector, vet, native compilation, Windows
-cross-compilation, and release-contract checks. `make verify-release` also
-builds the archives twice and requires byte-identical output.
+`make verify` runs tests with `-short`, the race detector, vet, native
+compilation, Windows cross-compilation, and release-contract checks. It
+does not launch Chrome. `make test-live` runs the same tests without
+`-short` after `make init`. `make verify-release` also builds the archives
+twice and requires byte-identical output.
 
 Rules:
 

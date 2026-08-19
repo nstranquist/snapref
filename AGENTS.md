@@ -6,7 +6,7 @@ Local-first browser automation core. Public commands live on `snapref`.
 
 ```sh
 make verify
-go test ./...
+make test-live
 go run ./cmd/snapref version
 go run ./cmd/snapref self-test
 go run ./cmd/snapref demo mcp-policy

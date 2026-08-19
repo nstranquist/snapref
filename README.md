@@ -20,8 +20,9 @@ snapref demo ref-integrity
 iframes, then clicks all three. `demo mcp-policy` does not launch Chrome.
 `demo ref-integrity` needs a managed runtime.
 
-GitHub Actions `go` does not launch Chrome. The Ubuntu `self-test` job
-installs Chrome for Testing and runs `snapref self-test` plus
+GitHub Actions `go` and local `make verify` pass `-short`, so they do not
+launch Chrome even after `make init`. The Ubuntu `self-test` job installs
+Chrome for Testing and runs `snapref self-test` plus
 `snapref demo ref-integrity`. `demo mcp-policy` is covered by `go test`.
 
 In a source checkout, `make init` runs the same two runtime installs.
@@ -110,7 +111,9 @@ The live `snapref self-test` verifies hydrated snapshot readiness. It also
 verifies ref actuation across open shadow roots and same-origin frames.
 That command is a machine receipt (`--json`). GitHub Actions runs it on
 Ubuntu after `snapref runtime install --runtime chrome-for-testing`. Local
-`make verify` does not launch Chrome.
+`make verify` passes `-short` and does not launch Chrome. After `make init`,
+live receipts are `snapref self-test`, `snapref demo ref-integrity`, and
+`make test-live`.
 
 `snapref demo mcp-policy` is the drive/origin grant receipt. `snapref demo
 ref-integrity` is the stale-ref receipt: snapshot, click `sr-…`, snapshot

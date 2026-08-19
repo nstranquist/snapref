@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -52,17 +54,33 @@ func TestParseDemoRuntime(t *testing.T) {
 	}
 }
 
+func TestEmitDemoReceiptWritesJSONThenReturnsRunError(t *testing.T) {
+	stdout, restore := captureStdout(t)
+	err := emitDemoReceipt(map[string]any{"ok": false, "workflow": "mcp-policy"}, errors.New("mcp-policy: click without drive must fail closed"))
+	restore()
+	if err == nil || !strings.Contains(err.Error(), "click without drive") {
+		t.Fatalf("run error = %v", err)
+	}
+	out := stdout()
+	if !strings.Contains(out, `"ok": false`) || !strings.Contains(out, `"workflow": "mcp-policy"`) {
+		t.Fatalf("partial receipt missing: %s", out)
+	}
+}
+
 func TestDemoRefIntegrity(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping browser integration test in -short mode")
 	}
 	isolateManagedChromeForTesting(t)
-	receipt, err := runRefIntegrityDemo(browser.RuntimeChromeForTesting)
+	stdout, restore := captureStdout(t)
+	err := demoCommand([]string{"ref-integrity", "--runtime", "chrome-for-testing"})
+	restore()
 	if err != nil {
-		if strings.Contains(err.Error(), "Chrome for Testing") || strings.Contains(err.Error(), "no Chromium") {
-			t.Skip(err.Error())
-		}
 		t.Fatal(err)
+	}
+	var receipt refIntegrityReceipt
+	if json.Unmarshal([]byte(stdout()), &receipt) != nil {
+		t.Fatalf("receipt json: %s", stdout())
 	}
 	if !receipt.OK || !receipt.Clicked || !receipt.StaleRejected || receipt.FirstRef == "" {
 		t.Fatalf("receipt = %+v", receipt)

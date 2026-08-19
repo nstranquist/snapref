@@ -11,13 +11,17 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
   shipped MCP stdio server. Snapshot runs without drive; click and navigate
   do not. An origin allowlist refuses off-list hosts.
 - `snapref demo ref-integrity` snapshots a local fixture, clicks the live
-  `sr-…` ref, mutates the node, and proves the same ref fails closed.
+  `sr-…` ref, snapshots again, and proves the old ref fails closed.
 - GitHub Actions Ubuntu `self-test` job installs Chrome for Testing and
-  runs `snapref self-test` plus `demo ref-integrity`. The `go` job still
-  does not launch Chrome.
+  runs `snapref self-test` plus `demo ref-integrity`.
 
 ### Changed
 
+- `make verify` and GitHub Actions `go` pass `-short`, so they do not
+  launch Chrome after `make init`. Live Chrome is `make test-live`,
+  `snapref self-test`, and `snapref demo ref-integrity`.
+- Failed `snapref demo mcp-policy` emits the partial JSON receipt, then
+  returns the error, matching `demo ref-integrity`.
 - ProcessTree `v0.1.0-rc.1` is vendored at `processtree/`. `go.mod` no longer
   uses a sibling `replace`.
 - Shot-pack schema is `snapref.shot-pack.v1` and default directories are

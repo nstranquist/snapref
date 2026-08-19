@@ -71,6 +71,31 @@ func TestExampleWorkflowDocsNameShippedCommands(t *testing.T) {
 	}
 }
 
+func TestVerifyPathsDoNotLaunchChrome(t *testing.T) {
+	makefile, err := os.ReadFile(filepath.Join("..", "..", "Makefile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ci, err := os.ReadFile(filepath.Join("..", "..", ".github", "workflows", "ci.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"go test -mod=readonly -short ./...",
+		"go test -mod=readonly -race -short ./...",
+	} {
+		if !strings.Contains(string(makefile), want) {
+			t.Fatalf("Makefile missing %q:\n%s", want, makefile)
+		}
+	}
+	if !strings.Contains(string(ci), "go test -mod=readonly -count=1 -short ./...") {
+		t.Fatalf("CI go job missing -short:\n%s", ci)
+	}
+	if !strings.Contains(string(ci), "snapref self-test --runtime chrome-for-testing") {
+		t.Fatal("CI self-test job lost the live self-test command")
+	}
+}
+
 func TestScriptValidateAcceptsExamplePlaybook(t *testing.T) {
 	path := filepath.Join("..", "..", "examples", "open-and-snapshot.yaml")
 	if err := scriptCommand([]string{"validate", path}); err != nil {

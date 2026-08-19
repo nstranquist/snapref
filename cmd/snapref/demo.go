@@ -54,23 +54,24 @@ func demoCommand(args []string) error {
 			return fmt.Errorf("demo mcp-policy: unexpected argument %q", args[1])
 		}
 		receipt, err := browsermcp.RunPolicyWorkflow()
-		if err != nil {
-			return err
-		}
-		return emit(receipt)
+		return emitDemoReceipt(receipt, err)
 	case "ref-integrity":
 		kind, err := parseDemoRuntime(args[1:])
 		if err != nil {
 			return err
 		}
 		receipt, err := runRefIntegrityDemo(kind)
-		if emitErr := emit(receipt); emitErr != nil {
-			return emitErr
-		}
-		return err
+		return emitDemoReceipt(receipt, err)
 	default:
 		return fmt.Errorf("demo: unknown workflow %q\n\n%s", args[0], demoHelpText)
 	}
+}
+
+func emitDemoReceipt(receipt any, err error) error {
+	if emitErr := emit(receipt); emitErr != nil {
+		return emitErr
+	}
+	return err
 }
 
 func parseDemoRuntime(args []string) (browser.RuntimeKind, error) {

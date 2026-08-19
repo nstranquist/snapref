@@ -59,6 +59,7 @@ func sharedSourceDigest(root string) (string, error) {
 		".git":            true,
 		".nicos":          true,
 		".playwright-mcp": true,
+		"bin":             true,
 		"dist":            true,
 		"portfolio":       true,
 	}
