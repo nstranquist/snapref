@@ -38,8 +38,22 @@ func TestSelfTestWaitsForHydrationHook(t *testing.T) {
 	}
 }
 
+func TestScriptValidateAcceptsExamplePlaybook(t *testing.T) {
+	path := filepath.Join("..", "..", "examples", "open-and-snapshot.yaml")
+	if err := scriptCommand([]string{"validate", path}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestScriptRunRequiresPlaybook(t *testing.T) {
+	err := scriptCommand([]string{"run"})
+	if err == nil || !strings.Contains(err.Error(), "snapref script run") {
+		t.Fatalf("script run usage error = %v", err)
+	}
+}
+
 func TestHelpExposesGenericSkillsWithoutNicosHandoff(t *testing.T) {
-	for _, want := range []string{"snapref skill <url>", "snapref job-posting"} {
+	for _, want := range []string{"snapref skill <url>", "snapref job-posting", "snapref script run"} {
 		if !strings.Contains(helpText, want) {
 			t.Fatalf("help missing %q", want)
 		}

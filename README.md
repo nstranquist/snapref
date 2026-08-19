@@ -7,9 +7,12 @@ cross-platform lifecycle gates.
 
 ```sh
 go install ./cmd/snapref
-make init
+snapref runtime install --runtime chrome-for-testing --channel stable
+snapref runtime install --runtime headless-shell --channel stable
 snapref self-test
 ```
+
+In a source checkout, `make init` runs the same two runtime installs.
 
 Status: `0.2.0-rc.1`, local release candidate. No public repository or tag has
 been published. Windows support is not advertised until a physical
@@ -29,7 +32,8 @@ only. Host-specific product handoffs are outside this module.
 ## Golden path
 
 ```sh
-make init
+snapref runtime install --runtime chrome-for-testing --channel stable
+snapref runtime install --runtime headless-shell --channel stable
 snapref runtime verify --all
 snapref open demo
 snapref exec demo navigate http://localhost:3000
@@ -120,8 +124,7 @@ SnapRef is a local engine, not a hosted browser fleet.
 - `script` runs YAML/JSON/Starlark plans against an open session.
 - `mcp` is a policy-gated stdio server. Drive, host-read, host-write, and
   origin grants are separate authorities.
-- `cmd/snapref` is the standalone CLI. Host adapters such as `ndev browser`
-  live outside this module.
+- `cmd/snapref` is the standalone CLI. Host adapters live outside this module.
 - `processtree` is a vendored MIT copy used only for bounded subprocess
   cancellation in release and benchmark tools.
 

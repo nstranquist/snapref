@@ -31,9 +31,8 @@ for one authority does not imply another.
 
 ## Host adapters
 
-Factory adapters such as `ndev browser` may wrap this module. They are not
-part of the SnapRef release archive. JobKit, workspace, and companion handoffs
-stay in the host.
+Host adapters may wrap this module. They are not part of the SnapRef release
+archive. Private product handoffs stay in the host.
 
 ## Process lifecycle
 

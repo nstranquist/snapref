@@ -50,7 +50,7 @@ var releaseFiles = []string{
 	"third_party/licenses/github.com/gobwas/httphead/LICENSE",
 	"third_party/licenses/github.com/gobwas/pool/LICENSE",
 	"third_party/licenses/github.com/gobwas/ws/LICENSE",
-	"third_party/licenses/github.com/nstranquist/processtree/LICENSE",
+	"processtree/LICENSE",
 	"third_party/licenses/go.starlark.net/LICENSE",
 	"third_party/licenses/go.yaml.in/yaml/v3/LICENSE",
 	"third_party/licenses/go.yaml.in/yaml/v3/NOTICE",

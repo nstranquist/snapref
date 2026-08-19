@@ -54,6 +54,8 @@ func run(args []string) error {
 		return emit(sessions)
 	case "exec":
 		return execute(args[1:])
+	case "script":
+		return scriptCommand(args[1:])
 	case "skill":
 		return extractSkill(args[1:], false)
 	case "job-posting":
@@ -794,6 +796,7 @@ Usage:
   snapref exec <session> type <selector-or-ref> <text>
   snapref exec <session> press <key>
   snapref exec <session> screenshot [path]
+  snapref script run <file.yaml|.json|.star> [--session <name>] [--open] [--allow-drive]
   snapref skill <url> [--runtime <kind>] [--json]
   snapref job-posting <greenhouse|lever|ashby-url> [--runtime <kind>] [--json]
   snapref self-test [--runtime <kind>]
