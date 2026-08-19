@@ -3,9 +3,9 @@
 The wedge proofs are `snapref demo` receipts, not public-site YAML.
 
 ```sh
-snapref demo mcp-policy
-snapref runtime install --runtime chrome-for-testing --channel stable
-snapref demo ref-integrity
+go run ./cmd/snapref demo mcp-policy
+go run ./cmd/snapref runtime install --runtime chrome-for-testing --channel stable
+go run ./cmd/snapref demo ref-integrity
 ```
 
 - [ref-integrity](ref-integrity/README.md): snapshot, click `sr-…`, snapshot again, fail closed

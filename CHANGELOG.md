@@ -17,6 +17,9 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ### Changed
 
+- README tagged-install block is `v0.2.0-rc.1` `self-test` only. Wedge
+  `demo` receipts are checkout commands (`go run ./cmd/snapref demo …`).
+  Do not pair `go install @v0.2.0-rc.1` with `snapref demo`.
 - `make verify` and GitHub Actions `go` pass `-short`, so they do not
   launch Chrome after `make init`. Live Chrome is `make test-live`,
   `snapref self-test`, and `snapref demo ref-integrity`.

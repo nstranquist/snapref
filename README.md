@@ -7,13 +7,22 @@ isolated sessions, interactive snapshots with revision-bound executable refs,
 typed actuation/assertion, scripts, policy-gated MCP, telemetry receipts, and
 cross-platform lifecycle gates.
 
+Tagged `v0.2.0-rc.1` is the published unsigned prerelease. It includes
+`self-test`. It does not include `demo`.
+
 ```sh
 go install github.com/nstranquist/snapref/cmd/snapref@v0.2.0-rc.1
 snapref runtime install --runtime chrome-for-testing --channel stable
 snapref runtime install --runtime headless-shell --channel stable
 snapref self-test
-snapref demo mcp-policy
-snapref demo ref-integrity
+```
+
+Wedge receipts are in this checkout:
+
+```sh
+go run ./cmd/snapref demo mcp-policy
+go run ./cmd/snapref runtime install --runtime chrome-for-testing --channel stable
+go run ./cmd/snapref demo ref-integrity
 ```
 
 `self-test` checks delayed hydration, open shadow roots, and same-origin
@@ -27,8 +36,10 @@ Chrome for Testing and runs `snapref self-test` plus
 
 In a source checkout, `make init` runs the same two runtime installs.
 
-Status: `0.2.0-rc.1` at https://github.com/nstranquist/snapref. Windows
-support is not advertised until a physical Windows+Chrome gate passes.
+Status: published unsigned prerelease `v0.2.0-rc.1` at
+https://github.com/nstranquist/snapref. Wedge `demo` receipts are in this
+checkout, not in that tag. Windows support is not advertised until a
+physical Windows+Chrome gate passes.
 
 ## Packages
 
@@ -36,7 +47,7 @@ support is not advertised until a physical Windows+Chrome gate passes.
 - `contract`: typed operation/permission/result registry;
 - `script`: YAML/JSON/Starlark repeatable workflow engine;
 - `mcp`: policy-gated MCP stdio server;
-- `cmd/snapref`: standalone CLI and live self-test.
+- `cmd/snapref`: standalone CLI, live self-test, and checkout demo receipts.
 
 The standalone `skill` and `job-posting` commands emit generic typed extraction
 only. Host-specific product handoffs are outside this module.
@@ -46,8 +57,8 @@ only. Host-specific product handoffs are outside this module.
 These two receipts are the public wedge. They are not example.com YAML.
 
 ```sh
-snapref demo mcp-policy
-snapref demo ref-integrity
+go run ./cmd/snapref demo mcp-policy
+go run ./cmd/snapref demo ref-integrity
 ```
 
 See `examples/mcp-policy/` and `examples/ref-integrity/`. Talk about SnapRef

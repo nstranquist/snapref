@@ -5,7 +5,7 @@ demo does not launch Chrome. It runs the shipped MCP stdio server against
 a fake driver and prints a receipt.
 
 ```sh
-snapref demo mcp-policy
+go run ./cmd/snapref demo mcp-policy
 ```
 
 Expected receipt:

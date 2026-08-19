@@ -5,8 +5,8 @@ inventory it was captured against. After the next snapshot, SnapRef fails
 closed. It does not silently relocate.
 
 ```sh
-snapref runtime install --runtime chrome-for-testing --channel stable
-snapref demo ref-integrity
+go run ./cmd/snapref runtime install --runtime chrome-for-testing --channel stable
+go run ./cmd/snapref demo ref-integrity
 ```
 
 Expected receipt: `ok: true`, `clicked: true`, `stale_rejected: true`,

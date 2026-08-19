@@ -52,6 +52,40 @@ func TestSelfTestFixtureHasHydrationShadowAndFrame(t *testing.T) {
 	}
 }
 
+func TestReadmeTaggedInstallDoesNotAdvertiseDemo(t *testing.T) {
+	body, err := os.ReadFile(filepath.Join("..", "..", "README.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fence := range readmeShellFences(string(body)) {
+		if !strings.Contains(fence, "go install") || !strings.Contains(fence, "@v") {
+			continue
+		}
+		if strings.Contains(fence, "demo") {
+			t.Fatalf("tagged go install fence advertises demo (not in v0.2.0-rc.1):\n%s", fence)
+		}
+	}
+}
+
+func readmeShellFences(src string) []string {
+	var out []string
+	rest := src
+	for {
+		i := strings.Index(rest, "```sh")
+		if i < 0 {
+			return out
+		}
+		rest = rest[i+len("```sh"):]
+		rest = strings.TrimPrefix(rest, "\n")
+		j := strings.Index(rest, "```")
+		if j < 0 {
+			return out
+		}
+		out = append(out, rest[:j])
+		rest = rest[j+len("```"):]
+	}
+}
+
 func TestExampleWorkflowDocsNameShippedCommands(t *testing.T) {
 	cases := []struct {
 		path string

@@ -13,7 +13,7 @@ and it does not search for a personal Chrome installation.
 | `mcp` | Policy-gated MCP stdio server |
 | `productshot` | Shot and record packs |
 | `processtree` | Vendored MIT subprocess-tree cancellation used by release and benchmark tools |
-| `cmd/snapref` | Standalone CLI and live self-test |
+| `cmd/snapref` | Standalone CLI, live self-test, and checkout demo receipts |
 | `cmd/snapref-release` | Reproducible local archive builder |
 | `cmd/snapref-benchmark` | Diagnostic runtime comparison |
 
