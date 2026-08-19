@@ -1,12 +1,14 @@
 # SnapRef
 
+[![ci](https://github.com/nstranquist/snapref/actions/workflows/ci.yml/badge.svg)](https://github.com/nstranquist/snapref/actions/workflows/ci.yml)
+
 SnapRef is a dependency-light, local-first browser automation core for agents:
 isolated sessions, interactive snapshots with revision-bound executable refs,
 typed actuation/assertion, scripts, policy-gated MCP, telemetry receipts, and
 cross-platform lifecycle gates.
 
 ```sh
-go install ./cmd/snapref
+go install github.com/nstranquist/snapref/cmd/snapref@v0.2.0-rc.1
 snapref runtime install --runtime chrome-for-testing --channel stable
 snapref runtime install --runtime headless-shell --channel stable
 snapref self-test
@@ -14,9 +16,8 @@ snapref self-test
 
 In a source checkout, `make init` runs the same two runtime installs.
 
-Status: `0.2.0-rc.1`, local release candidate. No public repository or tag has
-been published. Windows support is not advertised until a physical
-Windows+Chrome gate passes.
+Status: `0.2.0-rc.1` at https://github.com/nstranquist/snapref. Windows
+support is not advertised until a physical Windows+Chrome gate passes.
 
 ## Packages
 

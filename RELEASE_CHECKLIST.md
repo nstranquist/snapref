@@ -1,7 +1,7 @@
 # Release checklist
 
-SnapRef is not released. Complete every item before you create a public
-repository, tag, module version, package, or binary release.
+Public source is at https://github.com/nstranquist/snapref. The current
+tag is `v0.2.0-rc.1`. Complete the remaining items before a signed 1.0.
 
 - [x] Clear the public name and module path with the repository owner. Public name is SnapRef; module path is `github.com/nstranquist/snapref`.
 - [x] Run `make verify-release` from a clean standalone checkout.
@@ -17,8 +17,9 @@ repository, tag, module version, package, or binary release.
 - [x] Review `NOTICE`, `THIRD_PARTY_NOTICES.md`, every bundled license text,
   and the managed-browser terms.
 - [x] Confirm that `VERSION`, `package.json`, the CLI version, the intended tag,
-  and `CHANGELOG.md` agree (`0.2.0-rc.1`; no public tag yet).
+  and `CHANGELOG.md` agree (`0.2.0-rc.1` / tag `v0.2.0-rc.1`).
 - [x] Verify every entry in `SHA256SUMS` against the final archives.
 - [x] Keep Nicos adapters and control-plane code outside this repository.
-- [ ] Obtain explicit approval before you create a remote, push, tag, or
-  publish.
+- [x] Obtain explicit approval before you create a remote, push, tag, or
+  publish. Public repo, `v0.2.0-rc.1` tag, and unsigned GitHub prerelease
+  exist. GPG-signed artifacts do not.

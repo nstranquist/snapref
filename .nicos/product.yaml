@@ -7,7 +7,7 @@ status: experimental
 persona: Agent developer who needs local browser automation with typed authority, executable refs, and evidence receipts.
 jtbd: Run inspectable browser workflows without using a personal browser profile or granting hidden host authority.
 launch: built
-launch_blocker: Physical Windows and Chrome verification, public naming clearance, repository creation, and publication remain human-gated.
+launch_blocker: Physical Windows and Chrome verification, legal trademark clearance, and GPG-signed artifacts remain human-gated.
 license: Apache-2.0
 tags:
   - browser-automation
