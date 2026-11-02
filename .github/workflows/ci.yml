@@ -66,9 +66,17 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
+      - name: Allow Chrome sandbox user namespaces
+        # Ubuntu 24.04 runners restrict unprivileged user namespaces through
+        # AppArmor. Chrome for Testing has no AppArmor profile, so its sandbox
+        # exits before publishing DevToolsActivePort. Relax the runner, not
+        # SnapRef: the browser keeps its sandbox enabled.
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: Install Chrome for Testing
         run: GOWORK=off go run -mod=readonly ./cmd/snapref runtime install --runtime chrome-for-testing --channel stable
       - name: Self-test
+        env:
+          SNAPREF_DEBUG: "1"
         run: GOWORK=off go run -mod=readonly ./cmd/snapref self-test --runtime chrome-for-testing --json
       - name: Ref-integrity demo
         run: GOWORK=off go run -mod=readonly ./cmd/snapref demo ref-integrity --runtime chrome-for-testing
