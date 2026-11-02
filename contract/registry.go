@@ -41,6 +41,7 @@ const (
 	ClickText     OperationID = "click_text"
 	ClickXPath    OperationID = "click_xpath"
 	Type          OperationID = "type"
+	Select        OperationID = "select"
 	Press         OperationID = "press"
 	Wait          OperationID = "wait"
 	WaitText      OperationID = "wait_text"
@@ -83,6 +84,7 @@ var operations = []Operation{
 	{ClickText, "", "", "browser_click", "click_text", PermissionDrive, TimeoutDefault, "browser.click_text", ResultNone},
 	{ClickXPath, "", "", "browser_click", "click_xpath", PermissionDrive, TimeoutDefault, "browser.click_xpath", ResultNone},
 	{Type, "type", "browser_type", "browser_type", "type", PermissionDrive, TimeoutDefault, "browser.type", ResultNone},
+	{Select, "select", "browser_select", "browser_select", "select", PermissionDrive, TimeoutDefault, "browser.select", ResultNone},
 	{Press, "press", "browser_press", "browser_press", "press", PermissionDrive, TimeoutDefault, "browser.press", ResultNone},
 	{Wait, "wait", "browser_wait", "browser_wait", "wait", PermissionRead, TimeoutDefault, "browser.wait", ResultNone},
 	{WaitText, "", "", "browser_wait", "wait_text", PermissionRead, TimeoutDefault, "browser.wait_text", ResultNone},

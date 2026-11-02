@@ -14,8 +14,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chromedp/cdproto/cdp"
+	"github.com/chromedp/cdproto/dom"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 	"github.com/chromedp/chromedp/kb"
@@ -305,7 +308,93 @@ func xpathLiteral(s string) string {
 	return b.String()
 }
 
-// TypeOn sends text to a CSS selector in an existing tab context.
+const fillElementJS = `(function(payload) {
+  const value = payload.value;
+  const element = this;
+  const view = element.ownerDocument && element.ownerDocument.defaultView;
+  if (!view) throw new Error("matched element has no document window");
+  if (element.readOnly) throw new Error("matched element is read-only");
+
+  try {
+    element.focus({preventScroll: true});
+  } catch (_) {
+    element.focus();
+  }
+
+  let actual;
+  if (element instanceof view.HTMLInputElement || element instanceof view.HTMLTextAreaElement) {
+    const prototype = element instanceof view.HTMLInputElement
+      ? view.HTMLInputElement.prototype
+      : view.HTMLTextAreaElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(prototype, "value").set;
+    if (typeof setter !== "function") throw new Error("matched element has no native value setter");
+    // Use the native prototype setter. React installs an instance setter to
+    // track controlled fields; bypassing that tracker lets the bubbling input
+    // event report the replacement to React instead of being ignored.
+    setter.call(element, value);
+    actual = element.value;
+    if (actual !== value) {
+      throw new Error("browser normalized the requested value to " + JSON.stringify(actual));
+    }
+    if (typeof element.setSelectionRange === "function") {
+      try {
+        element.setSelectionRange(value.length, value.length);
+      } catch (_) {
+        // Some input types expose setSelectionRange but do not support it.
+      }
+    }
+  } else if (element.isContentEditable) {
+    element.textContent = value;
+    actual = element.textContent;
+  } else {
+    throw new Error("matched element is not an input, textarea, or contenteditable element");
+  }
+
+  let inputEvent;
+  if (typeof view.InputEvent === "function") {
+    try {
+      inputEvent = new view.InputEvent("input", {
+        bubbles: true,
+        composed: true,
+        data: value,
+        inputType: "insertReplacementText"
+      });
+    } catch (_) {
+      // Fall back for browser contexts that expose but cannot construct InputEvent.
+    }
+  }
+  element.dispatchEvent(inputEvent || new view.Event("input", {bubbles: true, composed: true}));
+  element.dispatchEvent(new view.Event("change", {bubbles: true, composed: true}));
+  return actual === value;
+})`
+
+func fillNode(ctx context.Context, node *cdp.Node, text string) error {
+	object, err := dom.ResolveNode().WithNodeID(node.NodeID).Do(ctx)
+	if err != nil {
+		return fmt.Errorf("resolve type target: %w", err)
+	}
+	defer func() { _ = runtime.ReleaseObject(object.ObjectID).Do(ctx) }()
+
+	var filled bool
+	err = chromedp.CallFunctionOn(fillElementJS, &filled,
+		func(params *runtime.CallFunctionOnParams) *runtime.CallFunctionOnParams {
+			return params.WithObjectID(object.ObjectID)
+		},
+		struct {
+			Value string `json:"value"`
+		}{Value: text},
+	).Do(ctx)
+	if err != nil {
+		return fmt.Errorf("fill type target: %w", err)
+	}
+	if !filled {
+		return errors.New("fill type target: value was not replaced")
+	}
+	return nil
+}
+
+// TypeOn replaces the content of an editable selector in an existing tab
+// context and emits bubbling input and change events.
 func TypeOn(parent context.Context, taskCtx context.Context, selector, text string, timeout time.Duration) error {
 	query, queryOption, err := targetQuery(selector)
 	if err != nil {
@@ -316,7 +405,15 @@ func TypeOn(parent context.Context, taskCtx context.Context, selector, text stri
 		if err := waitForSelectorActionable(ctx, "type", selector, actionTimeout); err != nil {
 			return err
 		}
-		return chromedp.Run(ctx, chromedp.SendKeys(query, text, queryOption))
+		return chromedp.Run(ctx, chromedp.QueryAfter(query,
+			func(ctx context.Context, _ runtime.ExecutionContextID, nodes ...*cdp.Node) error {
+				if len(nodes) == 0 {
+					return fmt.Errorf("selector %q did not return any nodes", selector)
+				}
+				return fillNode(ctx, nodes[0], text)
+			},
+			queryOption,
+		))
 	})
 }
 
@@ -697,6 +794,21 @@ func RemoteScreenshotCurrent(s *Session, captureBeyondViewport bool) ([]byte, er
 	return RemoteScreenshotCurrentWithTimeout(s, captureBeyondViewport, 60*time.Second)
 }
 
+const screenshotPresentedFrameJS = `new Promise(resolve => {
+  let complete = false;
+  let timer;
+  const finish = () => {
+    if (complete) return;
+    complete = true;
+    clearTimeout(timer);
+    resolve(1);
+  };
+  timer = setTimeout(finish, 250);
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(() => requestAnimationFrame(finish));
+  }
+})`
+
 // RemoteScreenshotCurrentWithTimeout captures the current page state with a
 // hard timeout around the raw CDP screenshot call. Some Chrome builds can leave
 // Page.captureScreenshot waiting indefinitely; on timeout we close the raw
@@ -728,7 +840,7 @@ func RemoteScreenshotCurrentWithTimeout(s *Session, captureBeyondViewport bool, 
 	// renderer presents the current DOM. Errors are non-fatal (best effort).
 	_, _ = cdpCall(ctx, conn, next(), "Page.bringToFront", nil)
 	_, _ = cdpCall(ctx, conn, next(), "Runtime.evaluate", map[string]any{
-		"expression":   "new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r(1))))",
+		"expression":   screenshotPresentedFrameJS,
 		"awaitPromise": true,
 	})
 

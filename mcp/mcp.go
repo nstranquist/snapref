@@ -213,6 +213,11 @@ func (s *server) tools() []map[string]any {
 			"inputSchema": sessionSchema(mergeSchema(targetSchema(), map[string]any{"text": map[string]any{"type": "string"}}), "text"),
 		},
 		{
+			"name":        "browser_select",
+			"description": "Select exactly one enabled option by normalized visible label in a select element addressed by CSS selector or executable snapshot ref" + driveNote + ".",
+			"inputSchema": sessionSchema(mergeSchema(targetSchema(), map[string]any{"label": map[string]any{"type": "string", "description": "Visible option label; option values are not accepted"}}), "label"),
+		},
+		{
 			"name":        "browser_press",
 			"description": "Press a keyboard key (e.g. Enter, Tab) after the focused element passes actionability, if one is focused" + driveNote + ".",
 			"inputSchema": sessionSchema(map[string]any{"key": map[string]any{"type": "string"}}, "key"),
@@ -226,7 +231,7 @@ func (s *server) tools() []map[string]any {
 			"name": "browser_snapshot",
 			"description": "Eyes on the page (read-only): return a structured inventory of the session's interactive elements — " +
 				"buttons, links, inputs, role=button, contenteditable — each with an accessible name, role, and a UNIQUE css " +
-				"executable revision-bound `ref` you can hand straight to browser_click / browser_type (selectors remain diagnostic). Use this to DISCOVER what's on an unfamiliar " +
+				"executable revision-bound `ref` you can hand straight to browser_click / browser_type / browser_select (selectors remain diagnostic). Use this to DISCOVER what's on an unfamiliar " +
 				"page instead of hand-writing eval(querySelectorAll(...)); then act with the gated drive tools. " +
 				"Returns {url,title,matched,returned,truncated,counts,elements[{ref,role,tag,name,selector,...}]}.",
 			"inputSchema": sessionSchema(map[string]any{
@@ -416,6 +421,15 @@ func (s *server) callTool(params json.RawMessage) (string, bool) {
 			return value, true
 		}
 		return s.runDrive(p.Name, session, "target="+value, func() error { return d.Type(ctx, session, value, str("text")) })
+	case "browser_select":
+		value, ok := target()
+		if !ok {
+			return value, true
+		}
+		label := str("label")
+		return s.runDrive(p.Name, session, fmt.Sprintf("target=%s option_bytes=%d", value, len(label)), func() error {
+			return d.Select(ctx, session, value, label)
+		})
 	case "browser_press":
 		return s.runDrive(p.Name, session, "key="+str("key"), func() error { return d.Press(ctx, session, str("key")) })
 	case "browser_eval":

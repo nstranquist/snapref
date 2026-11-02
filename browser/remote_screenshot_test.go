@@ -1,6 +1,49 @@
 package browser
 
-import "testing"
+import (
+	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+)
+
+func TestRemoteScreenshotCurrentDoesNotHangWhenAnimationFramesAreSuspended(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping browser integration test in -short mode")
+	}
+	requireManagedChromeForTesting(t)
+	fixture := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = io.WriteString(w, `<!doctype html><html><body>
+<h1>Screenshot fallback</h1>
+<script>window.requestAnimationFrame = () => 0;</script>
+</body></html>`)
+	}))
+	defer fixture.Close()
+
+	const sessionName = "screenshot-suspended-frames-e2e"
+	sess, err := Open(OpenOptions{Name: sessionName, Runtime: RuntimeChromeForTesting, ReadyTimeout: 30 * time.Second})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer Close(sessionName, true)
+	if err := RemoteNavigate(context.Background(), sess, fixture.URL, 30*time.Second); err != nil {
+		t.Fatalf("navigate: %v", err)
+	}
+	started := time.Now()
+	png, err := RemoteScreenshotCurrentWithTimeout(sess, false, 2*time.Second)
+	if err != nil {
+		t.Fatalf("screenshot with suspended animation frames: %v", err)
+	}
+	if elapsed := time.Since(started); elapsed >= 1500*time.Millisecond {
+		t.Fatalf("screenshot with suspended animation frames took %s, want bounded timer fallback", elapsed)
+	}
+	if len(png) < 8 || string(png[:8]) != "\x89PNG\r\n\x1a\n" {
+		t.Fatalf("screenshot is not a PNG: %d bytes", len(png))
+	}
+}
 
 func TestScreenshotCaptureParamsWithoutMetricsUsesLiveRenderer(t *testing.T) {
 	params := screenshotCaptureParams(false, nil, nil)

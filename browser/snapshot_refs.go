@@ -12,7 +12,12 @@ import (
 	"time"
 )
 
-const snapshotRefSchemaVersion = 2
+const (
+	snapshotRefSchemaVersion          = 2
+	snapshotRefTransitionGrace        = time.Second
+	snapshotRefTransitionProbe        = 250 * time.Millisecond
+	snapshotRefTransitionPollInterval = 50 * time.Millisecond
+)
 
 var executableSnapshotRefRE = regexp.MustCompile(`^(sr-[0-9a-f]{12}):(e[1-9][0-9]*)$`)
 var executableSnapshotRefPrefixRE = regexp.MustCompile(`^sr-[0-9a-f]{12}`)
@@ -164,7 +169,9 @@ func loadSnapshotRefs(session string) (*snapshotRefStore, error) {
 
 // ResolveTarget accepts either a normal CSS selector or an executable snapshot
 // ref. Refs are revision-checked and their semantic fingerprint is re-read from
-// the live DOM before the selector is returned to an actuation primitive.
+// the live DOM before the selector is returned to an actuation primitive. A
+// short same-fingerprint transition can recover, but SnapRef never relocates a
+// ref or accepts a changed semantic target.
 func ResolveTarget(ctx context.Context, session *Session, target string, timeout time.Duration) (string, error) {
 	target = strings.TrimSpace(target)
 	match := executableSnapshotRefRE.FindStringSubmatch(target)
@@ -188,10 +195,79 @@ func ResolveTarget(ctx context.Context, session *Session, target string, timeout
 	if !ok {
 		return "", &SnapshotRefError{Ref: target, Reason: "is unknown in the latest snapshot", Err: ErrStaleSnapshotRef}
 	}
-	var raw rawSnapshot
-	if err := RemoteEval(ctx, session, "", snapshotJSExpr(snapshotHardCap, false), &raw, timeout); err != nil {
-		return "", err
+
+	started := time.Now()
+	deadline := started.Add(snapshotRefTransitionGrace)
+	if timeout > 0 && timeout < snapshotRefTransitionGrace {
+		deadline = started.Add(timeout)
 	}
+	contextDeadline := false
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+		deadline = ctxDeadline
+		contextDeadline = true
+	}
+
+	for {
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
+		latest, err := loadSnapshotRefs(session.Name)
+		if err != nil {
+			return "", &SnapshotRefError{Ref: target, Reason: "cannot confirm the latest snapshot during transition retry", Err: ErrStaleSnapshotRef}
+		}
+		if latest.Revision != store.Revision {
+			return "", &SnapshotRefError{Ref: target, Reason: fmt.Sprintf("was superseded by revision %s", latest.Revision), Err: ErrStaleSnapshotRef}
+		}
+		latestStored, ok := latest.Targets[target]
+		if !ok {
+			return "", &SnapshotRefError{Ref: target, Reason: "is unknown in the latest snapshot", Err: ErrStaleSnapshotRef}
+		}
+		if latest.URL != store.URL || !snapshotRefTargetsEqual(latestStored, stored) {
+			return "", &SnapshotRefError{Ref: target, Reason: "changed in the latest snapshot mapping; take a new snapshot", Err: ErrStaleSnapshotRef}
+		}
+
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			break
+		}
+		probeTimeout := min(remaining, snapshotRefTransitionProbe)
+		var raw rawSnapshot
+		probeErr := RemoteEval(ctx, session, "", snapshotJSExpr(snapshotHardCap, false), &raw, probeTimeout)
+		if probeErr == nil {
+			if raw.URL != store.URL {
+				return "", &SnapshotRefError{Ref: target, Reason: "belongs to a page whose URL changed; take a new snapshot", Err: ErrStaleSnapshotRef}
+			}
+			live, matches := liveSnapshotRefTarget(raw, stored)
+			if matches > 1 {
+				return "", &SnapshotRefError{Ref: target, Reason: "matches multiple live elements and is ambiguous; take a new snapshot", Err: ErrStaleSnapshotRef}
+			}
+			if matches == 1 && snapshotElementFingerprint(live) == stored.Fingerprint {
+				return encodeTargetLocator(TargetLocator{Selector: stored.Selector, Context: stored.Context})
+			}
+		} else if err := ctx.Err(); err != nil {
+			return "", err
+		}
+
+		remaining = time.Until(deadline)
+		if remaining <= 0 {
+			break
+		}
+		if err := sleepCtx(ctx, min(remaining, snapshotRefTransitionPollInterval)); err != nil {
+			return "", err
+		}
+	}
+	if contextDeadline {
+		return "", context.DeadlineExceeded
+	}
+	retriedFor := time.Since(started).Round(10 * time.Millisecond)
+	return "", &SnapshotRefError{
+		Ref:    target,
+		Reason: fmt.Sprintf("did not recover its live element fingerprint after %s of transition retry; take a new snapshot", retriedFor),
+		Err:    ErrStaleSnapshotRef,
+	}
+}
+
+func liveSnapshotRefTarget(raw rawSnapshot, stored snapshotRefTarget) (SnapshotElement, int) {
 	matches := 0
 	var live SnapshotElement
 	for _, element := range raw.Elements {
@@ -201,10 +277,7 @@ func ResolveTarget(ctx context.Context, session *Session, target string, timeout
 		}
 	}
 	redactSnapshotElementValue(&live)
-	if matches != 1 || snapshotElementFingerprint(live) != stored.Fingerprint {
-		return "", &SnapshotRefError{Ref: target, Reason: "no longer matches its live element fingerprint", Err: ErrStaleSnapshotRef}
-	}
-	return encodeTargetLocator(TargetLocator{Selector: stored.Selector, Context: stored.Context})
+	return live, matches
 }
 
 func snapshotContextsEqual(left, right []SnapshotRoot) bool {
@@ -217,4 +290,11 @@ func snapshotContextsEqual(left, right []SnapshotRoot) bool {
 		}
 	}
 	return true
+}
+
+func snapshotRefTargetsEqual(left, right snapshotRefTarget) bool {
+	return left.Ref == right.Ref &&
+		left.Selector == right.Selector &&
+		left.Fingerprint == right.Fingerprint &&
+		snapshotContextsEqual(left.Context, right.Context)
 }

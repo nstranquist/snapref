@@ -173,6 +173,8 @@ func TestSnapshotRedactsSensitiveValuesInBrowser(t *testing.T) {
 <label for="pw">Password</label><input id="pw" type="password" value="DUMMY_PASSWORD_123">
 <label for="key">API key</label><input id="key" name="api-key" value="DUMMY_API_KEY_456">
 <label for="note">Note</label><input id="note" value="ordinary value">
+<textarea id="secret-textarea" name="client-secret">DUMMY_TEXTAREA_SECRET_789</textarea>
+<select id="secret-select" name="client-secret"><option value="DUMMY_SELECT_VALUE_987">DUMMY_SELECT_LABEL_654</option></select>
 </body></html>`)
 	}))
 	defer fixture.Close()
@@ -194,7 +196,7 @@ func TestSnapshotRedactsSensitiveValuesInBrowser(t *testing.T) {
 	for _, element := range snap.Elements {
 		bySelector[element.Selector] = element
 	}
-	for _, selector := range []string{"#pw", "#key"} {
+	for _, selector := range []string{"#pw", "#key", "#secret-textarea", "#secret-select"} {
 		got := bySelector[selector]
 		if got.Value != "" || !got.ValueRedacted {
 			t.Fatalf("%s leaked a sensitive value: %+v", selector, got)
@@ -204,7 +206,7 @@ func TestSnapshotRedactsSensitiveValuesInBrowser(t *testing.T) {
 		t.Fatalf("ordinary field was not preserved: %+v", got)
 	}
 	encoded, _ := json.Marshal(snap)
-	for _, secret := range []string{"DUMMY_PASSWORD_123", "DUMMY_API_KEY_456"} {
+	for _, secret := range []string{"DUMMY_PASSWORD_123", "DUMMY_API_KEY_456", "DUMMY_TEXTAREA_SECRET_789", "DUMMY_SELECT_VALUE_987", "DUMMY_SELECT_LABEL_654"} {
 		if strings.Contains(string(encoded), secret) {
 			t.Fatalf("serialized snapshot leaked %q: %s", secret, encoded)
 		}
@@ -293,8 +295,8 @@ func TestExecutableSnapshotRefRejectsFingerprintChangeWithoutNewSnapshot(t *test
 	if err := RemoteEval(ctx, sess, "", `document.querySelector('#target').textContent='Different'`, &ignored, 30*time.Second); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ResolveTarget(ctx, sess, ref, 30*time.Second); !errors.Is(err, ErrStaleSnapshotRef) {
-		t.Fatalf("fingerprint mismatch error = %v, want ErrStaleSnapshotRef", err)
+	if _, err := ResolveTarget(ctx, sess, ref, 30*time.Second); !errors.Is(err, ErrStaleSnapshotRef) || !strings.Contains(err.Error(), "transition retry") || !strings.Contains(err.Error(), "take a new snapshot") {
+		t.Fatalf("fingerprint mismatch error = %v, want transition diagnostic and ErrStaleSnapshotRef", err)
 	}
 }
 

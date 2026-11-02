@@ -63,10 +63,13 @@ func (f *policyFakeDriver) Click(_ context.Context, _, target string) error {
 func (f *policyFakeDriver) ClickText(context.Context, string, string) error    { return nil }
 func (f *policyFakeDriver) ClickXPath(context.Context, string, string) error   { return nil }
 func (f *policyFakeDriver) Type(context.Context, string, string, string) error { return nil }
-func (f *policyFakeDriver) Press(context.Context, string, string) error        { return nil }
-func (f *policyFakeDriver) WaitVisible(context.Context, string, string) error  { return nil }
-func (f *policyFakeDriver) WaitText(context.Context, string, string) error     { return nil }
-func (f *policyFakeDriver) WaitXPath(context.Context, string, string) error    { return nil }
+func (f *policyFakeDriver) Select(context.Context, string, string, string) error {
+	return nil
+}
+func (f *policyFakeDriver) Press(context.Context, string, string) error       { return nil }
+func (f *policyFakeDriver) WaitVisible(context.Context, string, string) error { return nil }
+func (f *policyFakeDriver) WaitText(context.Context, string, string) error    { return nil }
+func (f *policyFakeDriver) WaitXPath(context.Context, string, string) error   { return nil }
 func (f *policyFakeDriver) Text(context.Context, string, string) (string, error) {
 	return "", nil
 }

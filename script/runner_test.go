@@ -58,6 +58,10 @@ func (f *fakeDriver) Type(_ context.Context, _, sel, text string) error {
 	f.rec("type %s=%s", sel, text)
 	return f.fail["type"]
 }
+func (f *fakeDriver) Select(_ context.Context, _, sel, option string) error {
+	f.rec("select %s=%s", sel, option)
+	return f.fail["select"]
+}
 func (f *fakeDriver) Press(_ context.Context, _, key string) error {
 	f.rec("press %s", key)
 	return f.fail["press"]
@@ -281,9 +285,30 @@ func TestDriveGating(t *testing.T) {
 	}
 }
 
+func TestSelectUsesVisibleOptionFieldAndIsDriveGated(t *testing.T) {
+	step := Step{Verb: VerbSelect, Selector: "#plan", Option: "Team plan"}
+	blocked := newFake()
+	rep, _ := runPlan(t, blocked, Plan{Name: "select", Session: "s", Steps: []Step{step}}, RunOptions{})
+	if rep.OK || len(blocked.calls) != 0 || !strings.Contains(rep.Steps[0].Error, "drive-gated") {
+		t.Fatalf("select bypassed drive gate: report=%+v calls=%v", rep.Steps, blocked.calls)
+	}
+
+	allowed := newFake()
+	rep, _ = runPlan(t, allowed, Plan{Name: "select", Session: "s", Steps: []Step{step}}, RunOptions{AllowDrive: true})
+	if !rep.OK || strings.Join(allowed.calls, "|") != "select #plan=Team plan" {
+		t.Fatalf("select run = report:%+v calls:%v", rep.Steps, allowed.calls)
+	}
+
+	bad := Step{Verb: VerbSelect, Selector: "#plan"}
+	if err := bad.validate(); err == nil || !strings.Contains(err.Error(), "visible option label") {
+		t.Fatalf("empty select option validation = %v", err)
+	}
+}
+
 func TestAllActuationAndCodeExecutionIsDriveGated(t *testing.T) {
 	tests := []Step{
 		{Verb: VerbNavigate, URL: "https://x.test"},
+		{Verb: VerbSelect, Selector: "#plan", Option: "Team plan"},
 		{Verb: VerbEval, JS: "document.body.remove()"},
 		{Verb: VerbFetch, URL: "https://x.test"},
 		{Verb: VerbViewport, Width: 390, Height: 844},

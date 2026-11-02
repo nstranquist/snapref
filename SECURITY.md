@@ -34,11 +34,16 @@ will be coordinated after a fix and regression test exist.
 - Standalone CLI sessions default to a detached idle watchdog. Keep-alive is an
   explicit, visible policy rather than an accidental zero-duration lease.
 - Snapshot form values that resemble credentials are redacted in the page and
-  scrubbed again in Go.
+  scrubbed again in Go. Form-control names come from labels and attributes,
+  not textarea content or option text.
 - MCP navigation, drive, caller-selected host reads, and caller-selected host
   writes require separate explicit grants.
 - Snapshot refs are revision-bound and fingerprint-checked. Stale or changed
-  targets fail closed; SnapRef does not semantically relocate them.
+  targets fail closed; a bounded retry requires an unchanged page URL, snapshot
+  mapping, selector, root context, and fingerprint. Navigation errors do not
+  include either page URL. SnapRef does not semantically relocate refs.
+- Select actuation accepts one enabled visible label. It does not accept hidden
+  option values, and telemetry retains only the label byte count.
 - Open shadow roots and same-origin frames are supported. Closed shadow roots
   and cross-origin frame contents are deliberately outside the page-script
   inventory boundary.

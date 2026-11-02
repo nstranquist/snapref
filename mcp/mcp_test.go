@@ -26,6 +26,7 @@ type fakeDriver struct {
 	snapshotCalls   []browser.SnapshotOptions
 	failSnapshot    bool
 	screenshotPaths []string
+	selected        []string
 }
 
 func (f *fakeDriver) List() ([]SessionInfo, error) {
@@ -43,10 +44,14 @@ func (f *fakeDriver) Navigate(_ context.Context, session, url string, opts ...br
 	}
 	return nil
 }
-func (f *fakeDriver) Click(_ context.Context, _, _ string) error          { return nil }
-func (f *fakeDriver) ClickText(_ context.Context, _, _ string) error      { return nil }
-func (f *fakeDriver) ClickXPath(_ context.Context, _, _ string) error     { return nil }
-func (f *fakeDriver) Type(_ context.Context, _, _, _ string) error        { return nil }
+func (f *fakeDriver) Click(_ context.Context, _, _ string) error      { return nil }
+func (f *fakeDriver) ClickText(_ context.Context, _, _ string) error  { return nil }
+func (f *fakeDriver) ClickXPath(_ context.Context, _, _ string) error { return nil }
+func (f *fakeDriver) Type(_ context.Context, _, _, _ string) error    { return nil }
+func (f *fakeDriver) Select(_ context.Context, _, target, option string) error {
+	f.selected = append(f.selected, target+"|"+option)
+	return nil
+}
 func (f *fakeDriver) Press(_ context.Context, _, _ string) error          { return nil }
 func (f *fakeDriver) WaitVisible(_ context.Context, _, _ string) error    { return nil }
 func (f *fakeDriver) WaitText(_ context.Context, _, _ string) error       { return nil }
@@ -121,12 +126,37 @@ func TestToolsListExposesReadAndDriveTools(t *testing.T) {
 	}
 	for _, want := range []string{
 		"browser_list", "browser_text", "browser_screenshot", "browser_wait", "browser_snapshot",
-		"browser_navigate", "browser_click", "browser_type", "browser_press",
+		"browser_navigate", "browser_click", "browser_type", "browser_select", "browser_press",
 		"browser_eval", "browser_fetch", "browser_console",
 	} {
 		if !names[want] {
 			t.Errorf("tools/list missing %q", want)
 		}
+	}
+}
+
+func TestSelectIsDriveGatedAndRedactsTheOptionLabelFromAudit(t *testing.T) {
+	const secretLabel = "private-team-name"
+	fd := &fakeDriver{}
+	var audit bytes.Buffer
+	off := newTestServer(fd, false, &audit)
+	out, isErr := call(off, "browser_select", map[string]any{
+		"session": "a", "selector": "#plan", "label": secretLabel,
+	})
+	if !isErr || !strings.Contains(out, "disabled") || len(fd.selected) != 0 {
+		t.Fatalf("gated select = out:%q isErr:%v calls:%v", out, isErr, fd.selected)
+	}
+
+	audit.Reset()
+	on := newTestServer(fd, true, &audit)
+	out, isErr = call(on, "browser_select", map[string]any{
+		"session": "a", "selector": "#plan", "label": secretLabel,
+	})
+	if isErr || !strings.Contains(out, "option_bytes=17") || len(fd.selected) != 1 || fd.selected[0] != "#plan|"+secretLabel {
+		t.Fatalf("allowed select = out:%q isErr:%v calls:%v", out, isErr, fd.selected)
+	}
+	if strings.Contains(audit.String(), secretLabel) || !strings.Contains(audit.String(), fmt.Sprintf("option_bytes=%d", len(secretLabel))) {
+		t.Fatalf("select audit did not redact label: %s", audit.String())
 	}
 }
 

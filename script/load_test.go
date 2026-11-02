@@ -129,6 +129,34 @@ steps:
 	}
 }
 
+func TestLoadYAMLSelectAndStarlarkSelectOption(t *testing.T) {
+	p, err := LoadYAML([]byte(`
+name: select-plan
+session: s
+steps:
+  - verb: select
+    selector: "#plan"
+    option: "Team plan"
+`))
+	if err != nil {
+		t.Fatalf("LoadYAML: %v", err)
+	}
+	if err := p.Validate(); err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	if len(p.Steps) != 1 || p.Steps[0].Verb != VerbSelect || p.Steps[0].Option != "Team plan" {
+		t.Fatalf("select step = %+v", p.Steps)
+	}
+
+	f := newFake()
+	rep, err := RunStarlark(context.Background(), f, []byte(`select_option("#plan", "Team plan")`), "select.star", RunOptions{
+		Session: "s", Now: fixedClock(), AllowDrive: true,
+	})
+	if err != nil || !rep.OK || strings.Join(f.calls, "|") != "select #plan=Team plan" {
+		t.Fatalf("Starlark select = err:%v report:%+v calls:%v", err, rep, f.calls)
+	}
+}
+
 func TestAllVerbsComeFromTypedContract(t *testing.T) {
 	operations := browsercontract.ScriptOperations()
 	if len(AllVerbs) != len(operations) {

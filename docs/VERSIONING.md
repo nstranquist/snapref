@@ -30,3 +30,5 @@ new schema version. Old readers remain supported for at least one minor release.
 Executable snapshot refs are ephemeral capabilities, not durable IDs. Their
 text format can gain a new prefix only in a minor release. Previously issued
 refs are valid only for the latest inventory and live fingerprint by design.
+A bounded transition retry does not change that contract: it requires an
+unchanged page URL, snapshot mapping, selector, root context, and fingerprint.

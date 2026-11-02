@@ -26,7 +26,8 @@ go run ./cmd/snapref demo ref-integrity
 ```
 
 `self-test` checks delayed hydration, open shadow roots, and same-origin
-iframes, then clicks all three. `demo mcp-policy` does not launch Chrome.
+iframes. It clicks three controls and selects one option by visible label.
+`demo mcp-policy` does not launch Chrome.
 `demo ref-integrity` needs a managed runtime.
 
 GitHub Actions `go` and local `make verify` pass `-short`, so they do not
@@ -74,6 +75,7 @@ snapref open demo
 snapref exec demo navigate http://localhost:3000
 snapref exec demo snapshot --wait-for-selector '[data-test="app-ready"]' --settle 1s
 snapref exec demo click 'sr-…:e1'
+snapref exec demo select 'sr-…:e2' 'Team plan'
 snapref close demo --purge-profile
 ```
 
@@ -93,6 +95,11 @@ named profile for cookie/state reuse; `snapref gc` previews stale dead
 sessions and profiles, and `snapref gc --apply` reclaims them. Snapshot before
 acting. Use the newest ref. MCP drive, host-read, host-write, and origin grants
 are separate `SNAPREF_MCP_*` authorities.
+
+`select` matches exactly one enabled option by normalized visible label. It
+does not accept an opaque option value. CLI, MCP, and command telemetry record
+only the label byte count. YAML and JSON use `verb: select` with `option:`;
+Starlark uses `select_option(selector, option)`.
 
 Screenshots are full-page by default. YAML/JSON playbooks can declare
 `screenshot_mode: full-page` for archival evidence or
@@ -119,7 +126,8 @@ downloads, workspace overrides, user Go settings, and automatic toolchain
 downloads.
 
 The live `snapref self-test` verifies hydrated snapshot readiness. It also
-verifies ref actuation across open shadow roots and same-origin frames.
+verifies ref actuation across open shadow roots and same-origin frames, and it
+verifies native select input/change events through an executable ref.
 That command is a machine receipt (`--json`). GitHub Actions runs it on
 Ubuntu after `snapref runtime install --runtime chrome-for-testing`. Local
 `make verify` passes `-short` and does not launch Chrome. After `make init`,
@@ -181,13 +189,17 @@ snapref open demo
 snapref exec demo navigate https://example.com
 snapref exec demo snapshot --wait-for-selector body --settle 1s
 snapref exec demo click 'sr-…:e1'
+snapref exec demo select 'sr-…:e2' 'Team plan'
 snapref close demo --purge-profile
 snapref mcp
 ```
 
-`snapshot` is the discovery default. Act on the newest revision-bound ref.
-`eval` is an escape hatch, not the discovery path. MCP drive, host-read,
-host-write, and origin grants are separate explicit authorities.
+`snapshot` is the discovery default. Act on the newest revision-bound ref. A
+ref can wait up to one second only while the page URL, snapshot mapping,
+selector, context, and fingerprint stay unchanged during a UI transition.
+Navigation and changed, ambiguous, unknown, or superseded refs fail closed.
+`eval` is an escape hatch, not the discovery path. MCP drive,
+host-read, host-write, and origin grants are separate explicit authorities.
 
 ## Configuration
 

@@ -218,7 +218,12 @@ func actionabilityBootstrapJS() string {
       fail("enabled", "element is disabled or aria-disabled", rectJSON(r1));
       return;
     }
-    requestAnimationFrame(() => requestAnimationFrame(() => {
+	let stabilityComplete = false;
+	let stabilityTimer;
+	const checkStability = () => {
+	  if (stabilityComplete) return;
+	  stabilityComplete = true;
+	  ownerWindow.clearTimeout(stabilityTimer);
       if (!el.isConnected) {
         fail("present", "matched element detached between frames");
         return;
@@ -255,7 +260,14 @@ func actionabilityBootstrapJS() string {
 		frameView = parentView;
 	  }
 	  finish(Object.assign({ok: true, precondition: "ready", reason: "actionable"}, rectJSON(r2)));
-    }));
+	};
+	// Background tabs can suspend requestAnimationFrame indefinitely. Keep the
+	// stability check bounded so the caller receives an actionability verdict
+	// before its command deadline instead of an opaque context cancellation.
+	stabilityTimer = ownerWindow.setTimeout(checkStability, 250);
+	if (typeof ownerWindow.requestAnimationFrame === "function") {
+	  ownerWindow.requestAnimationFrame(() => ownerWindow.requestAnimationFrame(checkStability));
+	}
   };
   return true;
 })()`

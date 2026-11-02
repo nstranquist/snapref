@@ -13,6 +13,7 @@ snapref open demo
 snapref exec demo navigate http://localhost:3000
 snapref exec demo snapshot --wait-for-selector '[data-test="app-ready"]' --settle 1s
 snapref exec demo click 'sr-…:e1'
+snapref exec demo select 'sr-…:e2' 'Team plan'
 snapref close demo --purge-profile
 ```
 
@@ -56,8 +57,14 @@ context chain. Closed roots and cross-origin frame contents stay outside this
 page-script boundary.
 
 Snapshot refs are ephemeral and fail closed. A new snapshot supersedes prior
-refs, and every action rechecks the target's live fingerprint. SnapRef never
-silently relocates a changed ref.
+refs, and every action rechecks the target's live fingerprint. A ref can wait
+up to one second only while its page URL, snapshot mapping, selector, root
+context, and fingerprint stay unchanged during a UI transition. Navigation
+invalidates the ref. SnapRef never relocates a changed or ambiguous ref.
+
+Native `select` actuation matches one enabled option by normalized visible
+label, not by option value. It emits bubbling `input` and `change` events and
+works through top-level, open-shadow-root, and same-origin-frame refs.
 
 Persistent-session screenshots have two distinct contracts. Viewport capture
 reads the current CSS visual viewport from CDP layout metrics. Full-page capture

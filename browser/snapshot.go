@@ -204,12 +204,18 @@ const snapshotJSTemplate = `(() => {
       if (norm(t)) return norm(t).slice(0, 160);
     }
     const tag = el.tagName.toLowerCase();
-    if (tag === 'input') {
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+	  const labels = el.labels ? Array.from(el.labels).map((label) => label.innerText || label.textContent || '').join(' ') : '';
+	  if (norm(labels)) return norm(labels).slice(0, 160);
+	  if (tag === 'input') {
       const t = (el.getAttribute('type') || 'text').toLowerCase();
       if (t === 'submit' || t === 'button' || t === 'reset') return norm(el.value) || t;
-      if (el.id) { const root = el.getRootNode(); const l = root.querySelector && root.querySelector('label[for="' + cssEsc(el.id) + '"]'); if (l && norm(l.innerText)) return norm(l.innerText).slice(0, 160); }
+	  }
       const ph = el.getAttribute('placeholder'); if (ph && ph.trim()) return norm(ph).slice(0, 160);
-      return norm(el.getAttribute('name') || '').slice(0, 160);
+	  for (const a of ['title', 'name']) { const v = el.getAttribute(a); if (v && v.trim()) return norm(v).slice(0, 160); }
+	  // Form values and option/body text are data, not accessible names. Do not
+	  // copy them into discovery output when a control has no explicit name.
+	  return '';
     }
     const txt = norm(el.innerText || el.textContent || '');
     if (txt) return txt.slice(0, 160);

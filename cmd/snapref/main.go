@@ -549,6 +549,11 @@ func execute(args []string) error {
 			return err
 		}
 		return driver.Type(ctx, session, rest[0], rest[1])
+	case "select":
+		if err := require(2, "exec <session> select <selector-or-ref> <visible-option-label>"); err != nil {
+			return err
+		}
+		return driver.Select(ctx, session, rest[0], rest[1])
 	case "press":
 		if err := require(1, "exec <session> press <key>"); err != nil {
 			return err
@@ -643,15 +648,18 @@ func parseSnapshotOptions(args []string) (browser.SnapshotOptions, error) {
 }
 
 type selfTestReport struct {
-	OK          bool                `json:"ok"`
-	Version     string              `json:"version"`
-	RuntimeKind browser.RuntimeKind `json:"runtime_kind"`
-	Elements    int                 `json:"elements"`
-	ShadowRoots int                 `json:"shadow_roots"`
-	Frames      int                 `json:"frames"`
-	ReadyBy     string              `json:"ready_by"`
-	Screenshot  int                 `json:"screenshot_bytes"`
-	DurationMS  int64               `json:"duration_ms"`
+	OK           bool                `json:"ok"`
+	Version      string              `json:"version"`
+	RuntimeKind  browser.RuntimeKind `json:"runtime_kind"`
+	Elements     int                 `json:"elements"`
+	ShadowRoots  int                 `json:"shadow_roots"`
+	Frames       int                 `json:"frames"`
+	ReadyBy      string              `json:"ready_by"`
+	Selected     string              `json:"selected"`
+	SelectInput  int                 `json:"select_input_events"`
+	SelectChange int                 `json:"select_change_events"`
+	Screenshot   int                 `json:"screenshot_bytes"`
+	DurationMS   int64               `json:"duration_ms"`
 }
 
 func selfTest(args []string) error {
@@ -705,12 +713,16 @@ func selfTest(args []string) error {
 	if err != nil {
 		return err
 	}
-	if snapshot.Returned != 3 || snapshot.ShadowRoots != 1 || snapshot.Frames != 1 {
+	if snapshot.Returned != 4 || snapshot.ShadowRoots != 1 || snapshot.Frames != 1 {
 		return fmt.Errorf("unexpected snapshot: elements=%d shadows=%d frames=%d", snapshot.Returned, snapshot.ShadowRoots, snapshot.Frames)
 	}
 	byName := map[string]string{}
+	planRef := ""
 	for _, element := range snapshot.Elements {
 		byName[element.Name] = element.Ref
+		if element.Tag == "select" && element.Name == "Plan" {
+			planRef = element.Ref
+		}
 	}
 	driver := browser.NewRemoteDriver()
 	for _, name := range []string{"Hydrated action", "Shadow action", "Frame action"} {
@@ -721,6 +733,27 @@ func selfTest(args []string) error {
 			return fmt.Errorf("click %s: %w", name, err)
 		}
 	}
+	if planRef == "" {
+		return errors.New("snapshot missing \"Plan\"")
+	}
+	if err := driver.Select(ctx, session.Name, planRef, "Team plan"); err != nil {
+		return fmt.Errorf("select Plan: %w", err)
+	}
+	var selectState struct {
+		Selected string `json:"selected"`
+		Input    int    `json:"input"`
+		Change   int    `json:"change"`
+	}
+	if err := browser.RemoteEval(ctx, session, "", `(() => ({
+selected: document.querySelector('#plan').selectedOptions[0].label,
+input: window.selfTestSelect.input,
+change: window.selfTestSelect.change
+}))()`, &selectState, 20*time.Second); err != nil {
+		return fmt.Errorf("read selected plan: %w", err)
+	}
+	if selectState.Selected != "Team plan" || selectState.Input != 1 || selectState.Change != 1 {
+		return fmt.Errorf("selected plan receipt = %+v, want Team plan with one input and change event", selectState)
+	}
 	png, err := browser.RemoteScreenshotCurrent(session, true)
 	if err != nil {
 		return err
@@ -728,7 +761,8 @@ func selfTest(args []string) error {
 	return emit(selfTestReport{
 		OK: true, Version: version, RuntimeKind: session.RuntimeKind, Elements: snapshot.Returned,
 		ShadowRoots: snapshot.ShadowRoots, Frames: snapshot.Frames,
-		ReadyBy: snapshot.ReadyBy, Screenshot: len(png),
+		ReadyBy: snapshot.ReadyBy, Selected: selectState.Selected,
+		SelectInput: selectState.Input, SelectChange: selectState.Change, Screenshot: len(png),
 		DurationMS: time.Since(started).Milliseconds(),
 	})
 }
@@ -748,10 +782,13 @@ func selfTestFrameHTML() string {
 }
 
 func selfTestPageHTML() string {
-	return `<!doctype html><title>SnapRef self-test</title><main id="app"></main><div id="shadow-host"></div><iframe id="child-frame" src="/frame"></iframe><script>
+	return `<!doctype html><title>SnapRef self-test</title><main id="app"></main><select id="plan" aria-label="Plan"><option>Hobby plan</option><option>Team plan</option></select><div id="shadow-host"></div><iframe id="child-frame" src="/frame"></iframe><script>
 const root = document.querySelector('#shadow-host').attachShadow({mode:'open'});
 root.innerHTML = '<button id="shadow-action">Shadow action</button>';
 root.querySelector('button').onclick = event => event.currentTarget.dataset.clicked = 'yes';
+window.selfTestSelect = {input: 0, change: 0};
+document.querySelector('#plan').addEventListener('input', () => window.selfTestSelect.input++);
+document.querySelector('#plan').addEventListener('change', () => window.selfTestSelect.change++);
 setTimeout(() => { document.querySelector('#app').innerHTML = '<button id="hydrated">Hydrated action</button>'; }, 200);
 </script>`
 }
@@ -804,6 +841,7 @@ Usage:
   snapref exec <session> snapshot [--wait-for-selector <css>] [--settle 1s]
   snapref exec <session> click|wait|text <selector-or-ref>
   snapref exec <session> type <selector-or-ref> <text>
+  snapref exec <session> select <selector-or-ref> <visible-option-label>
   snapref exec <session> press <key>
   snapref exec <session> screenshot [path]
   snapref script run <file.yaml|.json|.star> [--session <name>] [--open] [--allow-drive]

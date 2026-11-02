@@ -66,6 +66,7 @@ type Driver interface {
 	ClickText(ctx context.Context, session, text string) error
 	ClickXPath(ctx context.Context, session, xpath string) error
 	Type(ctx context.Context, session, selector, text string) error
+	Select(ctx context.Context, session, selector, optionLabel string) error
 	Press(ctx context.Context, session, key string) error
 	WaitVisible(ctx context.Context, session, selector string) error
 	WaitText(ctx context.Context, session, text string) error

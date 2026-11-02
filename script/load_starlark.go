@@ -142,6 +142,11 @@ func starlarkBuiltins(e *execCtx, maxSteps int) starlark.StringDict {
 			err := starlark.UnpackArgs("fill", a, kw, "selector", &sel, "text", &text)
 			return Step{Verb: VerbType, Selector: sel, Text: text}, err
 		}, false),
+		"select_option": action(VerbSelect, func(a starlark.Tuple, kw []starlark.Tuple) (Step, error) {
+			var sel, option string
+			err := starlark.UnpackArgs("select_option", a, kw, "selector", &sel, "option", &option)
+			return Step{Verb: VerbSelect, Selector: sel, Option: option}, err
+		}, false),
 		"press": action(VerbPress, func(a starlark.Tuple, kw []starlark.Tuple) (Step, error) {
 			var key string
 			err := starlark.UnpackArgs("press", a, kw, "key", &key)

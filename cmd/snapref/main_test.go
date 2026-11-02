@@ -42,7 +42,7 @@ func TestSelfTestWaitsForHydrationHook(t *testing.T) {
 func TestSelfTestFixtureHasHydrationShadowAndFrame(t *testing.T) {
 	page := selfTestPageHTML()
 	frame := selfTestFrameHTML()
-	for _, want := range []string{"attachShadow", "setTimeout", "child-frame", `id="hydrated"`} {
+	for _, want := range []string{"attachShadow", "setTimeout", "child-frame", `id="hydrated"`, `id="plan"`, "Team plan"} {
 		if !strings.Contains(page, want) {
 			t.Fatalf("self-test page missing %q:\n%s", want, page)
 		}
@@ -174,7 +174,7 @@ func TestDemoUnknownWorkflow(t *testing.T) {
 }
 
 func TestHelpExposesGenericSkillsWithoutNicosHandoff(t *testing.T) {
-	for _, want := range []string{"snapref skill <url>", "snapref job-posting", "snapref script run", "snapref demo mcp-policy", "snapref demo ref-integrity"} {
+	for _, want := range []string{"snapref skill <url>", "snapref job-posting", "snapref script run", "snapref exec <session> select", "snapref demo mcp-policy", "snapref demo ref-integrity"} {
 		if !strings.Contains(helpText, want) {
 			t.Fatalf("help missing %q", want)
 		}

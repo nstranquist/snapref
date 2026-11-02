@@ -32,6 +32,7 @@ const (
 	VerbClickText     Verb = Verb(browsercontract.ClickText)
 	VerbClickXPath    Verb = Verb(browsercontract.ClickXPath)
 	VerbType          Verb = Verb(browsercontract.Type)
+	VerbSelect        Verb = Verb(browsercontract.Select)
 	VerbPress         Verb = Verb(browsercontract.Press)
 	VerbWait          Verb = Verb(browsercontract.Wait)
 	VerbWaitText      Verb = Verb(browsercontract.WaitText)
@@ -173,6 +174,7 @@ type Step struct {
 	Reload         bool            `json:"reload,omitempty"`
 	BypassCache    bool            `json:"bypass_cache,omitempty"`
 	Text           string          `json:"text,omitempty"`
+	Option         string          `json:"option,omitempty"`
 	Key            string          `json:"key,omitempty"`
 	JS             string          `json:"js,omitempty"`
 	Path           string          `json:"path,omitempty"`            // screenshot output path
@@ -293,9 +295,12 @@ func (s Step) validate() error {
 		if strings.TrimSpace(s.Text) == "" {
 			return fmt.Errorf("requires text (the visible text to wait for)")
 		}
-	case VerbType:
+	case VerbType, VerbSelect:
 		if strings.TrimSpace(s.Selector) == "" {
 			return fmt.Errorf("requires selector")
+		}
+		if s.Verb == VerbSelect && strings.TrimSpace(s.Option) == "" {
+			return fmt.Errorf("requires option (the visible option label)")
 		}
 	case VerbClickText:
 		if strings.TrimSpace(s.Text) == "" {

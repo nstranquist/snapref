@@ -297,6 +297,8 @@ func (r *Runner) execVerb(ctx context.Context, session string, st Step, sc *scop
 		return "", "", r.drv.ClickXPath(ctx, session, sc.expand(st.Selector))
 	case VerbType:
 		return "", "", r.drv.Type(ctx, session, sc.expand(st.Selector), sc.expand(st.Text))
+	case VerbSelect:
+		return "", "", r.drv.Select(ctx, session, sc.expand(st.Selector), sc.expand(st.Option))
 	case VerbPress:
 		return "", "", r.drv.Press(ctx, session, sc.expand(st.Key))
 	case VerbWait:

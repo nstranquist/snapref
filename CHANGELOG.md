@@ -7,6 +7,13 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ### Added
 
+- Native select actuation is available through the Go driver, CLI, MCP,
+  YAML/JSON scripts, and Starlark. It matches one enabled option by normalized
+  visible label and emits native input and change events.
+- Revision-bound actions use a one-second transition retry only while the page
+  URL, snapshot mapping, selector, root context, and semantic fingerprint stay
+  unchanged. Navigation fails closed without copying URL query data into the
+  stale-ref error.
 - `snapref demo mcp-policy` prints a drive/origin grant receipt through the
   shipped MCP stdio server. Snapshot runs without drive; click and navigate
   do not. An origin allowlist refuses off-list hosts.
@@ -68,6 +75,11 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ### Security
 
+- `golang.org/x/image` is upgraded to 0.39.0 to fix the reachable malicious
+  SFNT memory-allocation vulnerability GO-2026-4962. The required indirect
+  `golang.org/x/text` dependency is upgraded to 0.36.0.
+- Select telemetry retains only the visible-label byte count. Snapshot names
+  for form controls use labels and attributes, not textarea or option content.
 - Full-history secret scans keep redaction fixtures in scope and allow only the
   exact synthetic values in the snapshot redaction test.
 - Browser and page CDP endpoints reject redirects, oversized responses,

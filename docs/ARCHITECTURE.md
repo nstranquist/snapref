@@ -24,7 +24,14 @@ Named CLI sessions are isolated profiles under `SNAPREF_HOME` (default
 only verified managed runtimes or an explicit `SNAPREF_CHROME` override.
 
 Snapshot refs are revision-bound. A later snapshot invalidates prior refs.
-Actuation rechecks the live fingerprint and fails closed on drift.
+Actuation rechecks the live fingerprint and fails closed on drift. A bounded
+one-second retry requires the same page URL, snapshot mapping, selector, root
+context, and fingerprint during a UI transition. Navigation invalidates the
+ref. The retry cannot relocate a target.
+
+Select actuation uses the visible option label. It requires one enabled match,
+uses the native selected-index setter, and emits `input` and `change`. The
+option label is not retained in CLI, MCP, or command telemetry.
 
 MCP drive, host-read, host-write, and origin grants are independent. A grant
 for one authority does not imply another.
