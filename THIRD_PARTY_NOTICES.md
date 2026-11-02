@@ -22,9 +22,9 @@ The reviewed dependency set is:
 - `go.yaml.in/yaml/v3` `v3.0.4` — MIT and Apache-2.0;
 - `golang.org/x/sys` `v0.47.0` — BSD-3-Clause, with its patent grant
   included;
-- `golang.org/x/image` `v0.35.0` — BSD-3-Clause, with its patent grant
+- `golang.org/x/image` `v0.39.0` — BSD-3-Clause, with its patent grant
   included;
-- `golang.org/x/text` `v0.33.0` — BSD-3-Clause, with its patent grant
+- `golang.org/x/text` `v0.36.0` — BSD-3-Clause, with its patent grant
   included;
 - the Go standard library — BSD-3-Clause, with its patent grant included.
 

@@ -1,6 +1,6 @@
 {
   "name": "@nstranquist/snapref",
-  "version": "0.2.0-rc.1",
+  "version": "0.2.0-rc.2",
   "private": true,
   "description": "Local-first browser automation with executable refs, typed actuation, policy-gated MCP, and evidence receipts.",
   "license": "Apache-2.0",

@@ -17,7 +17,7 @@ import (
 	"github.com/nstranquist/snapref/mcp"
 )
 
-const version = "0.2.0-rc.1"
+const version = "0.2.0-rc.2"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
