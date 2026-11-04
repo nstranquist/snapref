@@ -267,14 +267,14 @@ func (s *server) tools() []map[string]any {
 		{
 			"name": "browser_console",
 			"description": "Capture client-side console.*, uncaught exceptions, and Log-domain entries via CDP — assert on JS errors without injecting window.onerror" + driveNote +
-				". Provide at most one trigger (navigate / reload / eval) to drive the page before capturing; omit all three to passively read the current console. Returns {count,errors,warnings,entries[]}.",
+				". Triggers: navigate or reload (exclusive) loads the page; eval drives an interaction, and after navigate/reload it runs once the page has loaded (load, then act). Omit all three to passively read the current console. Returns {count,errors,warnings,entries[]} plus, with eval, eval (settled|navigated) and navigated_to; an eval that navigates the page away (a sign-in redirect) is not an error. A failed navigation, a thrown/rejected eval, a load that never finishes, or an eval that does not settle in 30s returns isError with an error field and the entries captured.",
 			"inputSchema": sessionSchema(map[string]any{
 				"navigate":    map[string]any{"type": "string", "description": "Navigate to this URL first, then capture the load (the deterministic mode)"},
 				"reload":      map[string]any{"type": "boolean", "description": "Reload the current URL before capturing"},
-				"eval":        map[string]any{"type": "string", "description": "Run this JS (drive an interaction), then capture its console output"},
-				"duration":    map[string]any{"type": "string", "description": "Settle window to listen, e.g. 1.5s (default 1.5s)"},
+				"eval":        map[string]any{"type": "string", "description": "Run this JS (drive an interaction), then capture its console output; with navigate/reload it runs after the load event"},
+				"duration":    map[string]any{"type": "string", "description": "Settle window to listen after the last trigger, e.g. 1.5s (default 1.5s); with eval it counts from when the eval settles"},
 				"level":       map[string]any{"type": "string", "enum": []string{"all", "warning", "error"}, "description": "Minimum level to keep (default all)"},
-				"kind":        map[string]any{"type": "string", "enum": []string{"all", "js", "log"}, "description": "all | js (console+exception only, drops network/resource Log noise) | log (Log-domain only)"},
+				"kind":        map[string]any{"type": "string", "enum": browser.ConsoleKinds, "description": "all | js (console+exception only, drops network/resource Log noise) | log (Log-domain only) | csp (typed Content-Security-Policy violations from the Audits domain, report-only included)"},
 				"failOnError": map[string]any{"type": "boolean", "description": "Return an error result if any error-level entry is captured (assert no console errors)"},
 			}),
 		},
@@ -663,28 +663,8 @@ func (s *server) runConsole(ctx context.Context, tool, session string, args map[
 		opts.Window = parsed
 	}
 
-	triggers := 0
-	if opts.Navigate != "" {
-		triggers++
-	}
-	if opts.Reload {
-		triggers++
-	}
-	if opts.Eval != "" {
-		triggers++
-	}
-	if triggers > 1 {
-		return "use at most one of navigate / reload / eval", true
-	}
-	switch opts.Level {
-	case "", "all", "warning", "error":
-	default:
-		return "level must be all|warning|error", true
-	}
-	switch opts.Kind {
-	case "", "all", "js", "log":
-	default:
-		return "kind must be all|js|log", true
+	if err := opts.Validate(); err != nil {
+		return err.Error(), true
 	}
 	if opts.Navigate != "" {
 		if blocked := s.checkOrigin(tool, session, opts.Navigate); blocked != "" {
@@ -692,8 +672,13 @@ func (s *server) runConsole(ctx context.Context, tool, session string, args map[
 		}
 	}
 
-	entries, err := s.opts.Driver.Console(ctx, session, opts)
-	if err != nil {
+	res, err := browser.CaptureConsole(ctx, s.opts.Driver, session, opts)
+	entries := res.Entries
+	// A failed navigation, a thrown eval, a load timeout, or an eval that never
+	// settled still returns the entries collected; report them with the error
+	// instead of a clean result.
+	captureFailed := browser.IsConsoleCaptureFailure(err)
+	if err != nil && !captureFailed {
 		s.audit(tool, session, true, false, err.Error())
 		return err.Error(), true
 	}
@@ -708,26 +693,45 @@ func (s *server) runConsole(ctx context.Context, tool, session string, args map[
 		}
 	}
 	detail := fmt.Sprintf("errors=%d warnings=%d", errorCount, warnCount)
+	if opts.Eval != "" {
+		evalDetail := "eval"
+		if res.Eval != "" {
+			evalDetail = "eval=" + string(res.Eval)
+		}
+		detail = evalDetail + " " + detail
+	}
 	switch {
 	case opts.Navigate != "":
 		detail = "navigate=" + opts.Navigate + " " + detail
 	case opts.Reload:
 		detail = "reload " + detail
-	case opts.Eval != "":
-		detail = "eval " + detail
 	}
-	s.audit(tool, session, true, true, detail)
+	if captureFailed {
+		s.audit(tool, session, true, false, detail+" "+err.Error())
+	} else {
+		s.audit(tool, session, true, true, detail)
+	}
 
 	if entries == nil {
 		entries = []browser.ConsoleEntry{}
 	}
-	b, _ := json.MarshalIndent(map[string]any{
+	payload := map[string]any{
 		"count":    len(entries),
 		"errors":   errorCount,
 		"warnings": warnCount,
 		"entries":  entries,
-	}, "", "  ")
-	return string(b), boolArg("failOnError") && errorCount > 0
+	}
+	if res.Eval != "" {
+		payload["eval"] = res.Eval
+	}
+	if res.NavigatedTo != "" {
+		payload["navigated_to"] = res.NavigatedTo
+	}
+	if captureFailed {
+		payload["error"] = err.Error()
+	}
+	b, _ := json.MarshalIndent(payload, "", "  ")
+	return string(b), captureFailed || (boolArg("failOnError") && errorCount > 0)
 }
 
 // checkOrigin enforces the optional navigation allowlist for URL-bearing tools.

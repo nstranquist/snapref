@@ -524,6 +524,27 @@ func TestConsoleFailOnError(t *testing.T) {
 	}
 }
 
+// A console step whose capture ran but failed (here: Chrome could not reach
+// the target) fails the run with a typed class and keeps the entries.
+func TestConsoleCaptureFailureFailsStepAndKeepsEntries(t *testing.T) {
+	f := newFake()
+	f.console = []browser.ConsoleEntry{{Kind: "log", Level: "error", Text: "chrome-error page"}}
+	f.fail["console"] = &browser.ConsoleNavigateError{URL: "http://127.0.0.1:1/", ErrorText: "net::ERR_CONNECTION_REFUSED"}
+	rep, _ := runPlan(t, f, Plan{Name: "p", Session: "s", Steps: []Step{
+		{Verb: VerbConsole, Capture: "out", Console: &ConsoleArgs{Navigate: "http://127.0.0.1:1/", Eval: "1"}},
+	}}, RunOptions{AllowDrive: true})
+	if rep.OK || len(rep.Steps) != 1 {
+		t.Fatalf("expected the failed capture to fail the run: %+v", rep)
+	}
+	st := rep.Steps[0]
+	if !strings.Contains(st.Error, "net::ERR_CONNECTION_REFUSED") || st.ErrorClass != browser.ErrorClassProduct {
+		t.Fatalf("step error = %q class = %q", st.Error, st.ErrorClass)
+	}
+	if got, _ := st.Captured["out"].(string); !strings.Contains(got, "chrome-error page") {
+		t.Fatalf("entries dropped from the failed step: captured=%v", st.Captured)
+	}
+}
+
 func TestMaxSteps(t *testing.T) {
 	f := newFake()
 	plan := Plan{Name: "p", Session: "s", Steps: []Step{
@@ -581,6 +602,26 @@ func TestValidateRejectsBadPlan(t *testing.T) {
 	_, err := NewRunner(newFake()).Run(context.Background(), Plan{Name: "p", Session: "", Steps: nil}, RunOptions{})
 	if err == nil {
 		t.Fatal("expected validation error for empty session/steps")
+	}
+}
+
+func TestValidateConsoleStepKindLevelTriggers(t *testing.T) {
+	step := func(c *ConsoleArgs) Plan {
+		return Plan{Name: "p", Session: "s", Steps: []Step{{Verb: VerbConsole, Console: c}}}
+	}
+	for _, ok := range []*ConsoleArgs{nil, {Kind: "csp", Navigate: "http://x/"}, {Kind: "js", Level: "error", Reload: true}, {Navigate: "http://x/", Eval: "1"}} {
+		if err := step(ok).Validate(); err != nil {
+			t.Fatalf("valid console step %+v rejected: %v", ok, err)
+		}
+	}
+	for want, bad := range map[string]*ConsoleArgs{
+		"kind must be all|js|log|csp":       {Kind: "security"},
+		"level must be all|warning|error":   {Level: "loud"},
+		"navigate and reload are exclusive": {Navigate: "http://x/", Reload: true},
+	} {
+		if err := step(bad).Validate(); err == nil || !strings.Contains(err.Error(), want) {
+			t.Fatalf("console step %+v: want error containing %q, got %v", bad, want, err)
+		}
 	}
 }
 

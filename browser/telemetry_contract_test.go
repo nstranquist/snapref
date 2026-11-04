@@ -22,6 +22,8 @@ func TestClassifyErrorClosedClasses(t *testing.T) {
 		{&SnapshotRefError{Ref: "sr-bad:e1", Reason: "stale", Err: ErrStaleSnapshotRef}, ErrorClassSelector},
 		{errors.New("websocket connection refused"), ErrorClassTransport},
 		{errors.New("invalid --max value"), ErrorClassUsage},
+		{errors.New(`session "s" is already running (pid 1, port 2) — close it first`), ErrorClassUsage},
+		{errors.New("console --fail-on-error: captured 3 error(s)"), ErrorClassAssertion},
 		{errors.New("product upstream returned http 503"), ErrorClassProduct},
 		{errors.New("unexpected invariant"), ErrorClassInternal},
 	}

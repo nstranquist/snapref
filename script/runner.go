@@ -219,6 +219,13 @@ func (e *execCtx) run(st Step) (string, Result) {
 		res.OK = false
 		res.Error = err.Error()
 		res.ErrorClass = browser.ClassifyError(err)
+		// Keep the evidence a failed step still produced, as an assertion
+		// failure does: a console capture that ran but failed (or tripped
+		// fail_on_error) returns its entries with the error.
+		if st.Capture != "" && value != "" {
+			e.sc.set(st.Capture, value)
+			res.Captured = map[string]any{st.Capture: value}
+		}
 		res.DurationMS = elapsed(e.now, start)
 		return e.record(value, res)
 	}
@@ -421,11 +428,15 @@ func (r *Runner) execConsole(ctx context.Context, session string, st Step, sc *s
 		Level:    ca.Level,
 		Kind:     ca.Kind,
 	})
-	if err != nil {
+	if err != nil && !browser.IsConsoleCaptureFailure(err) {
 		return "", "", err
 	}
 	b, _ := json.Marshal(entries)
 	value := string(b)
+	if err != nil {
+		// The capture ran but must not pass: keep its entries on the failed step.
+		return value, "", err
+	}
 	if ca.FailOnError {
 		for _, e := range entries {
 			if e.Kind == "exception" || e.Level == "error" {

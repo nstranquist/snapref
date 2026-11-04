@@ -166,6 +166,73 @@ func TestReadStatsExcludesEscapedIdlePolicyParserFixtures(t *testing.T) {
 	}
 }
 
+// Assertion failures (a gate that ran and found a page defect) stay visible in
+// NonOK but do not count as tool errors in ErrorRatePct.
+func TestReadStatsAssertionFailuresExcludedFromErrorRate(t *testing.T) {
+	t.Setenv("SNAPREF_HOME", t.TempDir())
+	now := time.Now().UTC()
+	gate := cmdEvent("s", "exec.console", false, now)
+	gate.Command.ErrorClass = ErrorClassAssertion
+	gate.Command.ExitCode = 1
+	broken := cmdEvent("s", "exec.click", false, now)
+	broken.Command.ErrorClass = ErrorClassTransport
+	broken.Command.ExitCode = 1
+	for _, ev := range []ObserverEvent{gate, broken, cmdEvent("s", "exec.snapshot", true, now), cmdEvent("s", "exec.eval", true, now)} {
+		if err := AppendEvent(ev); err != nil {
+			t.Fatal(err)
+		}
+	}
+	st, err := ReadStats(StatsOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.TotalEvents != 4 || st.NonOK != 2 || st.AssertionFailures != 1 || st.ErrorRatePct != 25 {
+		t.Fatalf("events=%d non_ok=%d assertion_failures=%d error_rate=%.1f, want 4/2/1/25",
+			st.TotalEvents, st.NonOK, st.AssertionFailures, st.ErrorRatePct)
+	}
+	r := EvaluateStatsRatchet(st, StatsRatchetOptions{MaxErrorRatePct: 30, MinTypedToolPct: 0})
+	for _, c := range r.Checks {
+		if c.Name == "error_rate" && !c.OK {
+			t.Fatalf("error_rate check failed on assertion-only excess: %+v", c)
+		}
+	}
+}
+
+// A host CLI's shot/record tests wrote into the operator store until 2026-11-04.
+// Only their exact signature is excluded: a "dev" test binary, no session,
+// zero duration, failed. Real installed builds and timed runs stay counted.
+func TestReadStatsExcludesUnisolatedShotRecordTestRows(t *testing.T) {
+	t.Setenv("SNAPREF_HOME", t.TempDir())
+	now := time.Now().UTC()
+	mk := func(verb, build string, durMS int64, exit int, class ErrorClass) ObserverEvent {
+		ev := cmdEvent("", verb, false, now)
+		ev.BuildVersion = build
+		ev.Command.DurationMS = durMS
+		ev.Command.ExitCode = exit
+		ev.Command.ErrorClass = class
+		return ev
+	}
+	for _, ev := range []ObserverEvent{
+		mk("shot", "dev", 0, 2, ErrorClassUsage),          // excluded
+		mk("shot", "dev", 0, 1, ErrorClassInternal),       // excluded
+		mk("record", "dev", 0, 2, ErrorClassUsage),        // excluded
+		mk("shot", "1c2436c25804", 0, 2, ErrorClassUsage), // installed build: kept
+		mk("shot", "dev", 2746, 1, ErrorClassInternal),    // a real timed run: kept
+		mk("exec.click", "dev", 0, 2, ErrorClassUsage),    // other verb: kept
+	} {
+		if err := AppendEvent(ev); err != nil {
+			t.Fatal(err)
+		}
+	}
+	st, err := ReadStats(StatsOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.ExcludedSynthetic != 3 || st.TotalEvents != 3 || st.NonOK != 3 {
+		t.Fatalf("excluded=%d events=%d non_ok=%d, want 3/3/3", st.ExcludedSynthetic, st.TotalEvents, st.NonOK)
+	}
+}
+
 func TestReadStatsSessionAndSinceFilter(t *testing.T) {
 	t.Setenv("SNAPREF_HOME", t.TempDir())
 	now := time.Now().UTC()

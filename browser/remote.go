@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/chromedp/cdproto/cdp"
@@ -828,7 +829,52 @@ func RemoteScreenshotCurrentWithTimeout(s *Session, captureBeyondViewport bool, 
 	if err != nil {
 		return nil, fmt.Errorf("dial page websocket: %w", err)
 	}
-	defer closeCDPTransportAsync(conn)
+	return screenshotCurrentOnTransportWithTimeout(ctx, conn, captureBeyondViewport, timeout)
+}
+
+type screenshotResult struct {
+	png []byte
+	err error
+}
+
+// screenshotCurrentOnTransportWithTimeout bounds the whole CDP sequence, not
+// only Page.captureScreenshot. A websocket read can remain blocked after its
+// context expires, so the timeout path closes the transport to unblock any
+// bring-to-front, frame, metrics, or capture call in progress.
+func screenshotCurrentOnTransportWithTimeout(
+	ctx context.Context,
+	conn interface {
+		cdpTransport
+		Close() error
+	},
+	captureBeyondViewport bool,
+	timeout time.Duration,
+) ([]byte, error) {
+	var closeOnce sync.Once
+	closeTransport := func() {
+		closeOnce.Do(func() { closeCDPTransportAsync(conn) })
+	}
+	defer closeTransport()
+
+	done := make(chan screenshotResult, 1)
+	go func() {
+		png, err := captureCurrentScreenshot(ctx, conn, captureBeyondViewport)
+		done <- screenshotResult{png: png, err: err}
+	}()
+
+	select {
+	case got := <-done:
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("capture screenshot timeout after %s: %w", timeout, ctx.Err())
+		}
+		return got.png, got.err
+	case <-ctx.Done():
+		closeTransport()
+		return nil, fmt.Errorf("capture screenshot timeout after %s: %w", timeout, ctx.Err())
+	}
+}
+
+func captureCurrentScreenshot(ctx context.Context, conn cdpTransport, captureBeyondViewport bool) ([]byte, error) {
 
 	var id int64
 	next := func() int64 { id++; return id }
@@ -871,26 +917,9 @@ func RemoteScreenshotCurrentWithTimeout(s *Session, captureBeyondViewport bool, 
 		}
 	}
 
-	type captureResult struct {
-		res json.RawMessage
-		err error
-	}
-	done := make(chan captureResult, 1)
-	go func() {
-		res, err := cdpCall(ctx, conn, next(), "Page.captureScreenshot", params)
-		done <- captureResult{res: res, err: err}
-	}()
-
-	var res json.RawMessage
-	select {
-	case got := <-done:
-		if got.err != nil {
-			return nil, got.err
-		}
-		res = got.res
-	case <-ctx.Done():
-		closeCDPTransportAsync(conn)
-		return nil, fmt.Errorf("capture screenshot timeout after %s: %w", timeout, ctx.Err())
+	res, err := cdpCall(ctx, conn, next(), "Page.captureScreenshot", params)
+	if err != nil {
+		return nil, err
 	}
 	var result struct {
 		Data string `json:"data"`

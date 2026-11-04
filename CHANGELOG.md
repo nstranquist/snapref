@@ -5,6 +5,46 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ## Unreleased
 
+### Added
+
+- Console capture kind `csp` returns typed Content-Security-Policy issues from
+  the CDP Audits domain: directive, violation type, blocked URL, report-only
+  flag, and source location. Report-only violations count, so a Report-Only
+  soak can be gated without the browser's batched report upload.
+- Console capture accepts Navigate or Reload together with Eval: it loads the
+  page, waits for the new document's load event, then runs the eval in the
+  same capture. `ConsoleCaptureOptions.Validate` is the one rule set for the
+  CLI, MCP, and script surfaces.
+- `RemoteConsoleCaptureResult` returns `ConsoleCapture{Entries, Eval,
+  NavigatedTo}`. Drivers opt in through `ConsoleCapturer`; `CaptureConsole`
+  falls back to `Driver.Console`. The MCP `browser_console` payload carries
+  `eval` (`settled` or `navigated`) and `navigated_to`.
+- A request for a missing session returns `SessionMissingError`
+  (class usage). When the command log shows that the idle watchdog closed the
+  session, the error gives the close time, the lease, and the reopen command.
+  `SessionOpenCommand` sets the command a host CLI quotes.
+
+### Fixed
+
+- Console capture is never falsely clean. A navigation Chrome could not
+  complete, an eval that threw or rejected, a load that never fired before a
+  queued eval, and an eval that did not settle in 30 seconds each return a
+  typed error (`ConsoleNavigateError`, `ConsoleEvalError`,
+  `ConsoleLoadTimeoutError`, `ConsoleEvalTimeoutError`) with the entries
+  collected. Before, the capture skipped command responses and read as clean.
+- The console listen window starts when the eval settles, not when it is
+  sent. An eval that awaited longer than the window lost its later output,
+  and a late rejection read as clean.
+- An eval whose page navigates away (a sign-in redirect) is state
+  `navigated`, not a thrown eval. Capture continues on the new document.
+- Browser stats keep assertion failures (such as a tripped console gate) and
+  synthetic test rows out of the tool error rate, and report
+  `assertion_failures` separately.
+- The remote screenshot timeout bounds the whole CDP sequence (bring to
+  front, frame, metrics, and capture), not only `Page.captureScreenshot`.
+  On timeout it closes the page transport, so a websocket read that stays
+  blocked after its context expires cannot hang the screenshot.
+
 ## 0.2.0-rc.2 - 2026-11-02
 
 ### Added

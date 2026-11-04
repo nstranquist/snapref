@@ -89,6 +89,11 @@ func consoleEventFixtures() []string {
 		`{"method":"Runtime.exceptionThrown","params":{"timestamp":3,"exceptionDetails":{"text":"Uncaught","lineNumber":10,"columnNumber":5,"url":"http://example.test/app.js","exception":{"type":"object","subtype":"error","className":"TypeError","description":"TypeError: Cannot read properties of undefined (reading 'rows')\n    at render (app.js:11:6)"}}}}`,
 		`{"method":"Log.entryAdded","params":{"entry":{"source":"network","level":"error","text":"Failed to load resource: 404","timestamp":4,"url":"http://example.test/missing.json"}}}`,
 		`{"method":"Log.entryAdded","params":{"entry":{"source":"deprecation","level":"warning","text":"Deprecation: foo is deprecated","timestamp":5,"url":"http://example.test/app.js","lineNumber":7}}}`,
+		// Audits issues (shapes captured from Chrome 152, 11-04). Only --kind csp
+		// enables the Audits domain, so the other kinds must ignore these.
+		`{"method":"Audits.issueAdded","params":{"issue":{"code":"ContentSecurityPolicyIssue","details":{"contentSecurityPolicyIssueDetails":{"violatedDirective":"style-src-elem","isReportOnly":false,"contentSecurityPolicyViolationType":"kInlineViolation","sourceCodeLocation":{"scriptId":"8","url":"http://example.test/app.js","lineNumber":0,"columnNumber":81},"violatingNodeId":436}}}}}`,
+		`{"method":"Audits.issueAdded","params":{"issue":{"code":"ContentSecurityPolicyIssue","details":{"contentSecurityPolicyIssueDetails":{"blockedURL":"https://evil.example/x.png","violatedDirective":"img-src","isReportOnly":true,"contentSecurityPolicyViolationType":"kURLViolation","sourceCodeLocation":{"url":"http://example.test/app","lineNumber":-1,"columnNumber":0}}}}}}`,
+		`{"method":"Audits.issueAdded","params":{"issue":{"code":"MixedContentIssue","details":{"mixedContentIssueDetails":{"insecureURL":"http://x.test/a.js"}}}}}`,
 	}
 }
 
@@ -296,5 +301,55 @@ func TestRenderRemoteObjectPrefersValueThenDescription(t *testing.T) {
 	}
 	if got := renderRemoteObject(cdpRemoteObject{Type: "number", Value: json.RawMessage(`42`)}); got != "42" {
 		t.Fatalf("number value render = %q want 42", got)
+	}
+}
+
+func TestRemoteConsoleCaptureKindCSPReturnsTypedIssues(t *testing.T) {
+	entries := captureWith(t, ConsoleCaptureOptions{Kind: "csp"})
+	if len(entries) != 2 {
+		t.Fatalf("want 2 csp entries (mixed-content ignored, console/log dropped), got %d: %+v", len(entries), entries)
+	}
+	inline, url := entries[0], entries[1]
+	for _, e := range entries {
+		if e.Kind != "csp" || e.Level != "error" || e.CSP == nil {
+			t.Fatalf("csp entry not typed as error: %+v", e)
+		}
+	}
+	if got := *inline.CSP; got.Directive != "style-src-elem" || got.ViolationType != "inline" || got.ReportOnly ||
+		got.SourceURL != "http://example.test/app.js" || got.Line != 1 || got.Column != 82 {
+		t.Fatalf("inline violation = %+v", got)
+	}
+	if inline.Text != "CSP style-src-elem blocked inline at http://example.test/app.js:1:82" {
+		t.Fatalf("inline text = %q", inline.Text)
+	}
+	if got := *url.CSP; got.Directive != "img-src" || got.ViolationType != "url" || !got.ReportOnly ||
+		got.BlockedURL != "https://evil.example/x.png" || got.Line != 0 || got.Column != 0 {
+		t.Fatalf("url violation (lineNumber -1 = no position) = %+v", got)
+	}
+	if url.Text != "CSP img-src blocked https://evil.example/x.png (report-only) on http://example.test/app" {
+		t.Fatalf("url text = %q", url.Text)
+	}
+}
+
+func TestRemoteConsoleCaptureOtherKindsIgnoreAuditsIssues(t *testing.T) {
+	for _, kind := range []string{"", "all", "js", "log"} {
+		for _, e := range captureWith(t, ConsoleCaptureOptions{Kind: kind}) {
+			if e.Kind == "csp" || e.CSP != nil {
+				t.Fatalf("--kind %q surfaced an Audits issue without enabling Audits: %+v", kind, e)
+			}
+		}
+	}
+}
+
+func TestValidConsoleKind(t *testing.T) {
+	for _, k := range []string{"", "all", "js", "log", "csp"} {
+		if !ValidConsoleKind(k) {
+			t.Fatalf("ValidConsoleKind(%q) = false", k)
+		}
+	}
+	for _, k := range []string{"CSP", "security", "errors"} {
+		if ValidConsoleKind(k) {
+			t.Fatalf("ValidConsoleKind(%q) = true", k)
+		}
 	}
 }

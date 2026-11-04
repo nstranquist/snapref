@@ -117,10 +117,10 @@ func (remoteDriver) session(name string) (*Session, error) {
 	}
 	s, err := LoadSession(name)
 	if err != nil {
-		return nil, fmt.Errorf("no such session %q (open one with `snapref open %s`)", name, name)
+		return nil, MissingSessionError(name, SessionOpenCommand, err)
 	}
 	if !s.IsAlive() {
-		return nil, fmt.Errorf("session %q is not running", name)
+		return nil, MissingSessionError(name, SessionOpenCommand, nil)
 	}
 	if err := TouchSession(name); err != nil {
 		return nil, fmt.Errorf("renew session %q idle lease: %w", name, err)
@@ -314,6 +314,12 @@ func (d remoteDriver) ScreenshotWithCapture(ctx context.Context, session, path s
 func (d remoteDriver) Console(ctx context.Context, session string, opts ConsoleCaptureOptions) ([]ConsoleEntry, error) {
 	return withRemoteSessionResult(d, session, func(s *Session) ([]ConsoleEntry, error) {
 		return RemoteConsoleCapture(ctx, s, opts)
+	})
+}
+
+func (d remoteDriver) ConsoleCapture(ctx context.Context, session string, opts ConsoleCaptureOptions) (ConsoleCapture, error) {
+	return withRemoteSessionResult(d, session, func(s *Session) (ConsoleCapture, error) {
+		return RemoteConsoleCaptureResult(ctx, s, opts)
 	})
 }
 

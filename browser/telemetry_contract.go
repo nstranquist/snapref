@@ -65,6 +65,30 @@ func ClassifyError(err error) ErrorClass {
 	if errors.As(err, &refErr) {
 		return ErrorClassSelector
 	}
+	// Console capture failures are typed, so their (page-supplied) text cannot
+	// be misread by the substring rules below: an eval that threw is the
+	// caller's interaction failing, an unreachable target is the product, and
+	// a load or an eval that never finished is a timeout.
+	var missingErr *SessionMissingError
+	if errors.As(err, &missingErr) {
+		return ErrorClassUsage
+	}
+	var evalErr *ConsoleEvalError
+	if errors.As(err, &evalErr) {
+		return ErrorClassUsage
+	}
+	var navErr *ConsoleNavigateError
+	if errors.As(err, &navErr) {
+		return ErrorClassProduct
+	}
+	var loadErr *ConsoleLoadTimeoutError
+	if errors.As(err, &loadErr) {
+		return ErrorClassTimeout
+	}
+	var evalTimeoutErr *ConsoleEvalTimeoutError
+	if errors.As(err, &evalTimeoutErr) {
+		return ErrorClassTimeout
+	}
 	message := strings.ToLower(err.Error())
 	switch {
 	case containsAny(message, "drive-gated", "driving disabled", "disabled on this bridge", "not in the navigation allowlist", "host write", "host file read", "policy"):
@@ -77,7 +101,7 @@ func ClassifyError(err error) ErrorClass {
 		return ErrorClassSelector
 	case containsAny(message, "websocket", "cdp", "connection refused", "transport", "no page target", "not reachable"):
 		return ErrorClassTransport
-	case containsAny(message, "usage:", "requires ", "invalid ", "unknown flag", "unknown tool", "malformed", "no such session"):
+	case containsAny(message, "usage:", "requires ", "invalid ", "unknown flag", "unknown tool", "malformed", "no such session", "is already running"):
 		return ErrorClassUsage
 	case containsAny(message, "product", "upstream returned", "http 4", "http 5"):
 		return ErrorClassProduct

@@ -57,14 +57,19 @@ type FindingsStats struct {
 
 // BrowserStats is the full computed summary.
 type BrowserStats struct {
-	Window            string        `json:"window,omitempty"`
-	Since             string        `json:"since,omitempty"`
-	TotalEvents       int           `json:"total_events"`
-	ExcludedSynthetic int           `json:"excluded_synthetic,omitempty"`
-	Sessions          int           `json:"sessions"`
-	SessionNames      []string      `json:"session_names,omitempty"`
-	NonOK             int           `json:"non_ok"`
-	ErrorRatePct      float64       `json:"error_rate_pct"`
+	Window            string   `json:"window,omitempty"`
+	Since             string   `json:"since,omitempty"`
+	TotalEvents       int      `json:"total_events"`
+	ExcludedSynthetic int      `json:"excluded_synthetic,omitempty"`
+	Sessions          int      `json:"sessions"`
+	SessionNames      []string `json:"session_names,omitempty"`
+	NonOK             int      `json:"non_ok"`
+	// AssertionFailures are non-ok rows of class "assertion": a gate or assert
+	// step that ran and found a page defect (console --fail-on-error tripping,
+	// script assert_* failing). The tool worked, so they count in NonOK but not
+	// in ErrorRatePct.
+	AssertionFailures int           `json:"assertion_failures"`
+	ErrorRatePct      float64       `json:"error_rate_pct"` // (NonOK - AssertionFailures) / TotalEvents
 	Verbs             []VerbStat    `json:"verbs"`
 	Snapshots         SnapshotStats `json:"snapshots"`
 	Adoption          AdoptionStats `json:"adoption"`
@@ -157,6 +162,9 @@ func ReadStats(opts StatsOptions) (*BrowserStats, error) {
 			if !ev.Command.OK {
 				verbNonOK[verb]++
 				st.NonOK++
+				if ev.Command.ErrorClass == ErrorClassAssertion {
+					st.AssertionFailures++
+				}
 			}
 			return nil
 		})
@@ -177,7 +185,7 @@ func ReadStats(opts StatsOptions) (*BrowserStats, error) {
 	sort.Strings(st.SessionNames)
 	st.Sessions = len(st.SessionNames)
 	if st.TotalEvents > 0 {
-		st.ErrorRatePct = round1(float64(st.NonOK) / float64(st.TotalEvents) * 100)
+		st.ErrorRatePct = round1(float64(st.NonOK-st.AssertionFailures) / float64(st.TotalEvents) * 100)
 	}
 
 	st.Adoption = computeAdoption(verbCounts)
@@ -209,6 +217,14 @@ func isSyntheticFixtureEvent(ev ObserverEvent) bool {
 		return false
 	}
 	if runID, ok := ev.Command.Data["run_id"].(string); ok && strings.HasPrefix(runID, legacySyntheticRunIDPrefix) {
+		return true
+	}
+	// A host CLI's shot/record command tests ran without an isolated home
+	// until 2026-11-04 (now isolated in TestMain). Their rows are exact: a
+	// `go test` binary (build_version "dev", no VCS stamp), no session, zero
+	// duration, a failed shot/record. Installed builds always carry a git SHA.
+	if ev.BuildVersion == "dev" && ev.Session == "" && ev.Command.DurationMS == 0 && !ev.Command.OK &&
+		(ev.Command.Command == "shot" || ev.Command.Command == "record") {
 		return true
 	}
 	// The CLI idle-policy parser tests historically initialized the production

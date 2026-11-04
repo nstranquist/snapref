@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nstranquist/snapref/browser"
 	"github.com/nstranquist/snapref/contract"
 )
 
@@ -151,7 +152,7 @@ type ConsoleArgs struct {
 	Eval        string   `json:"eval,omitempty"`
 	Window      Duration `json:"window,omitempty"`
 	Level       string   `json:"level,omitempty"`         // all | warning | error
-	Kind        string   `json:"kind,omitempty"`          // all | js | log
+	Kind        string   `json:"kind,omitempty"`          // all | js | log | csp (browser.ConsoleKinds)
 	FailOnError bool     `json:"fail_on_error,omitempty"` // fail step on any error/exception
 }
 
@@ -317,6 +318,17 @@ func (s Step) validate() error {
 	case VerbEval:
 		if strings.TrimSpace(s.JS) == "" {
 			return fmt.Errorf("requires js")
+		}
+	case VerbConsole:
+		if c := s.Console; c != nil {
+			// One validator for every surface (CLI, MCP, scripts): navigate and
+			// reload are exclusive, eval may follow either, level and kind are
+			// closed sets.
+			if err := (browser.ConsoleCaptureOptions{
+				Navigate: c.Navigate, Reload: c.Reload, Eval: c.Eval, Level: c.Level, Kind: c.Kind,
+			}).Validate(); err != nil {
+				return fmt.Errorf("invalid console step: %w", err)
+			}
 		}
 	case VerbAssertText:
 		if strings.TrimSpace(s.Selector) == "" {

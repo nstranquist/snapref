@@ -22,6 +22,7 @@ type fakeDriver struct {
 	failNavigate    bool
 	consoleCalls    []browser.ConsoleCaptureOptions
 	consoleReturn   []browser.ConsoleEntry
+	consoleErr      error // returned WITH consoleReturn (a capture that ran but failed)
 	failConsole     bool
 	snapshotCalls   []browser.SnapshotOptions
 	failSnapshot    bool
@@ -77,7 +78,7 @@ func (f *fakeDriver) Console(_ context.Context, _ string, opts browser.ConsoleCa
 		return nil, fmt.Errorf("console boom")
 	}
 	f.consoleCalls = append(f.consoleCalls, opts)
-	return f.consoleReturn, nil
+	return f.consoleReturn, f.consoleErr
 }
 func (f *fakeDriver) Snapshot(_ context.Context, _ string, opts browser.SnapshotOptions) (*browser.PageSnapshot, error) {
 	if f.failSnapshot {
@@ -396,10 +397,9 @@ func TestConsoleRejectsConflictingTriggersAndBadArgs(t *testing.T) {
 		args map[string]any
 		want string
 	}{
-		{"navigate+reload", map[string]any{"session": "a", "navigate": "https://x/", "reload": true}, "at most one"},
-		{"navigate+eval", map[string]any{"session": "a", "navigate": "https://x/", "eval": "1"}, "at most one"},
+		{"navigate+reload", map[string]any{"session": "a", "navigate": "https://x/", "reload": true}, "navigate and reload are exclusive"},
 		{"bad level", map[string]any{"session": "a", "reload": true, "level": "loud"}, "level must be"},
-		{"bad kind", map[string]any{"session": "a", "reload": true, "kind": "weird"}, "kind must be"},
+		{"bad kind", map[string]any{"session": "a", "reload": true, "kind": "weird"}, "kind must be all|js|log|csp"},
 		{"bad duration", map[string]any{"session": "a", "reload": true, "duration": "soon"}, "invalid duration"},
 	}
 	for _, tc := range cases {
@@ -409,6 +409,27 @@ func TestConsoleRejectsConflictingTriggersAndBadArgs(t *testing.T) {
 				t.Fatalf("want error containing %q, got %q isErr=%v", tc.want, out, isErr)
 			}
 		})
+	}
+}
+
+func TestConsoleKindCSPPassesThroughAndIsInSchema(t *testing.T) {
+	fd := &fakeDriver{consoleReturn: []browser.ConsoleEntry{{Kind: "csp", Level: "error", Text: "CSP img-src blocked https://x/y.png",
+		CSP: &browser.CSPViolation{Directive: "img-src", ViolationType: "url", BlockedURL: "https://x/y.png"}}}}
+	s := &server{opts: Options{Driver: fd, AllowDrive: true, Now: func() time.Time { return time.Unix(0, 0).UTC() }}}
+	out, isErr := call(s, "browser_console", map[string]any{"session": "a", "reload": true, "kind": "csp"})
+	if isErr || !strings.Contains(out, `"directive": "img-src"`) {
+		t.Fatalf("csp kind should pass through typed entries, got %q isErr=%v", out, isErr)
+	}
+	var found bool
+	for _, tool := range s.tools() {
+		if tool["name"] != "browser_console" {
+			continue
+		}
+		b, _ := json.Marshal(tool)
+		found = strings.Contains(string(b), `"enum":["all","js","log","csp"]`)
+	}
+	if !found {
+		t.Fatalf("browser_console schema must advertise kind enum all|js|log|csp")
 	}
 }
 
@@ -437,6 +458,44 @@ func TestConsoleNavigateRespectsAllowlistAndAudits(t *testing.T) {
 	}
 	if !strings.Contains(audit.String(), `"allowed":true`) || !strings.Contains(audit.String(), "errors=1") {
 		t.Fatalf("success not audited with detail: %s", audit.String())
+	}
+}
+
+// navigate + eval is one capture now (load, then act): it must reach the
+// driver intact and audit both triggers.
+func TestConsoleNavigateThenEvalPassesThrough(t *testing.T) {
+	fd := &fakeDriver{}
+	var audit bytes.Buffer
+	s := newTestServer(fd, true, &audit)
+	if out, isErr := call(s, "browser_console", map[string]any{"session": "a", "navigate": "https://x/", "eval": "document.querySelector('a').click()"}); isErr {
+		t.Fatalf("navigate+eval rejected: %q", out)
+	}
+	if len(fd.consoleCalls) != 1 || fd.consoleCalls[0].Navigate != "https://x/" || fd.consoleCalls[0].Eval == "" {
+		t.Fatalf("driver opts = %+v", fd.consoleCalls)
+	}
+	if !strings.Contains(audit.String(), "navigate=https://x/ eval errors=0") {
+		t.Fatalf("audit detail missing both triggers: %s", audit.String())
+	}
+}
+
+// A capture that ran but failed (eval threw, navigation failed, load timeout)
+// is an error result that still carries its entries — never a clean result.
+func TestConsoleCaptureFailureCarriesEntriesAndError(t *testing.T) {
+	fd := &fakeDriver{
+		consoleReturn: []browser.ConsoleEntry{{Kind: "console", Level: "log", Text: "before throw"}},
+		consoleErr:    &browser.ConsoleEvalError{Description: "TypeError: x is null"},
+	}
+	var audit bytes.Buffer
+	s := newTestServer(fd, true, &audit)
+	out, isErr := call(s, "browser_console", map[string]any{"session": "a", "eval": "x.click()"})
+	if !isErr {
+		t.Fatalf("a thrown eval must be an error result, got %q", out)
+	}
+	if !strings.Contains(out, `"error": "console --eval threw: TypeError: x is null"`) || !strings.Contains(out, "before throw") {
+		t.Fatalf("payload must carry the error and the entries: %q", out)
+	}
+	if !strings.Contains(audit.String(), `"ok":false`) {
+		t.Fatalf("capture failure not audited as failed: %s", audit.String())
 	}
 }
 
@@ -638,5 +697,47 @@ func TestInitializeAndUnknownMethod(t *testing.T) {
 	// Notifications (no id) get no response.
 	if _, respond := s.handleRPC(rpcRequest{Method: "initialized"}); respond {
 		t.Error("notification should not be answered")
+	}
+}
+
+// capturingDriver reports the eval outcome, like the remote driver.
+type capturingDriver struct {
+	*fakeDriver
+	capture browser.ConsoleCapture
+}
+
+func (d capturingDriver) ConsoleCapture(_ context.Context, _ string, opts browser.ConsoleCaptureOptions) (browser.ConsoleCapture, error) {
+	d.consoleCalls = append(d.consoleCalls, opts)
+	return d.capture, nil
+}
+
+// An eval that navigates the page (a sign-in redirect) is a result, not an
+// error: the payload names the state and where the page went.
+func TestConsoleEvalStateReachesPayloadAndAudit(t *testing.T) {
+	d := capturingDriver{fakeDriver: &fakeDriver{}, capture: browser.ConsoleCapture{
+		Entries:     []browser.ConsoleEntry{{Kind: "console", Level: "log", Text: "desk page"}},
+		Eval:        browser.ConsoleEvalNavigated,
+		NavigatedTo: "https://x/desk",
+	}}
+	var audit bytes.Buffer
+	s := newTestServer(d, true, &audit)
+	out, isErr := call(s, "browser_console", map[string]any{"session": "a", "navigate": "https://x/login", "eval": "signIn()"})
+	if isErr {
+		t.Fatalf("navigating eval returned isError: %s", out)
+	}
+	var payload struct {
+		Eval        string `json:"eval"`
+		NavigatedTo string `json:"navigated_to"`
+		Count       int    `json:"count"`
+		Error       string `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(out), &payload); err != nil {
+		t.Fatalf("payload: %v\n%s", err, out)
+	}
+	if payload.Eval != "navigated" || payload.NavigatedTo != "https://x/desk" || payload.Count != 1 || payload.Error != "" {
+		t.Fatalf("payload = %+v", payload)
+	}
+	if !strings.Contains(audit.String(), "navigate=https://x/login eval=navigated errors=0") {
+		t.Fatalf("audit detail missing the eval state: %s", audit.String())
 	}
 }

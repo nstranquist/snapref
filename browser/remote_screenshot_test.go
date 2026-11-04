@@ -2,12 +2,55 @@ package browser
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/chromedp/cdproto"
 )
+
+type blockingScreenshotTransport struct {
+	closed chan struct{}
+	once   sync.Once
+}
+
+func (transport *blockingScreenshotTransport) Write(context.Context, *cdproto.Message) error {
+	return nil
+}
+
+func (transport *blockingScreenshotTransport) Read(context.Context, *cdproto.Message) error {
+	<-transport.closed
+	return errors.New("transport closed")
+}
+
+func (transport *blockingScreenshotTransport) Close() error {
+	transport.once.Do(func() { close(transport.closed) })
+	return nil
+}
+
+func TestScreenshotTimeoutClosesTransportBlockedBeforeCapture(t *testing.T) {
+	transport := &blockingScreenshotTransport{closed: make(chan struct{})}
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	_, err := screenshotCurrentOnTransportWithTimeout(ctx, transport, false, 50*time.Millisecond)
+	if err == nil || !strings.Contains(err.Error(), "capture screenshot timeout after 50ms") {
+		t.Fatalf("timeout error = %v", err)
+	}
+	if elapsed := time.Since(started); elapsed >= time.Second {
+		t.Fatalf("blocked pre-capture call returned after %s, want transport-close timeout", elapsed)
+	}
+	select {
+	case <-transport.closed:
+	default:
+		t.Fatal("timeout did not close the blocked CDP transport")
+	}
+}
 
 func TestRemoteScreenshotCurrentDoesNotHangWhenAnimationFramesAreSuspended(t *testing.T) {
 	if testing.Short() {
