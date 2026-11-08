@@ -109,3 +109,35 @@ func TestManifestRedactsCapturedAndAssertValues(t *testing.T) {
 		t.Fatalf("manifest leaked URL query/fragment in assert actual:\n%s", s)
 	}
 }
+
+func TestFileTelemetryFailedRunSummaryRetainsCause(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		steps []Result
+		want  browser.ErrorClass
+	}{
+		{"typed policy", []Result{{OK: true}, {Skipped: true}, {ErrorClass: browser.ErrorClassPolicy}}, browser.ErrorClassPolicy},
+		{"legacy cause", []Result{{Error: "selector missing"}}, browser.ErrorClassSelector},
+		{"unknown cause", nil, browser.ErrorClassInternal},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("SNAPREF_HOME", t.TempDir())
+			tel := NewFileTelemetry()
+			tel.Finish(&RunReport{RunID: "failed-run", Session: "s", Steps: tc.steps})
+			if tel.LastErr != nil {
+				t.Fatal(tel.LastErr)
+			}
+			rows, _, err := browser.ReadCommandEventFamily()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(rows) != 1 {
+				t.Fatalf("rows=%d", len(rows))
+			}
+			row := rows[0]
+			if row.Command.OK || row.Command.ExitCode != 1 || row.Command.ErrorClass != tc.want || row.ErrorClass != tc.want || row.Command.ReasonCode != browser.ErrorClassReason(tc.want) {
+				t.Fatalf("summary lost failed step cause: %+v", row)
+			}
+		})
+	}
+}

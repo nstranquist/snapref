@@ -218,9 +218,6 @@ func AppendEvent(event ObserverEvent) error {
 		}
 	}
 	if event.Command != nil {
-		if event.Command.ReasonCode == "" && !event.Command.OK {
-			event.Command.ReasonCode = ErrorClassReason(event.Command.ErrorClass)
-		}
 		if event.Command.RunKind == "" {
 			// Mark controlled negative probes at production time, without excluding
 			// them from health statistics or rewriting old history.
@@ -233,6 +230,12 @@ func AppendEvent(event ObserverEvent) error {
 		event.ErrorClass = ClassifyError(errors.New(event.Error))
 		if event.Command != nil && event.Command.ErrorClass == "" {
 			event.Command.ErrorClass = event.ErrorClass
+		}
+	}
+	if event.Command != nil && event.Command.ReasonCode == "" && !event.Command.OK {
+		event.Command.ReasonCode = ErrorClassReason(event.Command.ErrorClass)
+		if event.Command.ReasonCode == "" {
+			event.Command.ReasonCode = "command_failure"
 		}
 	}
 	path, err := CommandEventLogPath()

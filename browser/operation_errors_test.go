@@ -82,3 +82,28 @@ func TestTelemetryStatelessCohortPreservesHistoricalRate(t *testing.T) {
 		}
 	}
 }
+
+func TestTelemetryReasonFollowsFinalClassification(t *testing.T) {
+	t.Setenv("SNAPREF_HOME", t.TempDir())
+	for _, event := range []ObserverEvent{
+		{Kind: KindStep, Error: "drive-gated", Command: &ObserverCommand{Command: "script:click", ExitCode: 1}},
+		{Kind: KindCommand, Command: &ObserverCommand{Command: "unknown", ExitCode: 1}},
+	} {
+		if err := AppendEvent(event); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rows, _, err := ReadCommandEventFamily()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("rows=%d", len(rows))
+	}
+	if rows[0].Command.ErrorClass != ErrorClassPolicy || rows[0].Command.ReasonCode != "policy_denied" {
+		t.Fatalf("late classification lost: %+v", rows[0].Command)
+	}
+	if rows[1].Command.ReasonCode != "command_failure" {
+		t.Fatalf("unknown failure lacks reason: %+v", rows[1].Command)
+	}
+}

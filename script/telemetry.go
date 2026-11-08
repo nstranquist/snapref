@@ -2,6 +2,7 @@ package browserscript
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -90,13 +91,33 @@ func (t *FileTelemetry) Step(rep *RunReport, r Result) {
 
 // Finish records a browser.script end event and writes the run manifest.
 func (t *FileTelemetry) Finish(rep *RunReport) {
+	exit := 0
+	var class browser.ErrorClass
+	if !rep.OK {
+		exit = 1
+		class = browser.ErrorClassInternal
+		for _, step := range rep.Steps {
+			if step.OK || step.Skipped {
+				continue
+			}
+			if step.ErrorClass != "" {
+				class = step.ErrorClass
+			} else if step.Error != "" {
+				class = browser.ClassifyError(errors.New(step.Error))
+			}
+			break
+		}
+	}
 	t.note(browser.AppendEvent(browser.ObserverEvent{
-		Timestamp: rep.EndedAt,
-		Kind:      browser.KindScript,
-		Session:   rep.Session,
+		Timestamp:  rep.EndedAt,
+		Kind:       browser.KindScript,
+		Session:    rep.Session,
+		ErrorClass: class,
 		Command: &browser.ObserverCommand{
-			Command: "script:end",
-			OK:      rep.OK,
+			Command:    "script:end",
+			ExitCode:   exit,
+			ErrorClass: class,
+			OK:         rep.OK,
 			Data: map[string]any{
 				"run_id": rep.RunID,
 				"plan":   rep.Plan,
