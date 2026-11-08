@@ -173,7 +173,7 @@ func Eval(ctx context.Context, opts LaunchOptions, url, js string, out any) erro
 	if err := chromedp.Run(taskCtx,
 		chromedp.Navigate(url),
 		chromedp.WaitReady("body", chromedp.ByQuery),
-		chromedp.Evaluate(js, out),
+		chromedp.ActionFunc(func(ctx context.Context) error { return evaluationError(chromedp.Evaluate(js, out).Do(ctx)) }),
 	); err != nil {
 		return fmt.Errorf("eval %s: %w", url, err)
 	}

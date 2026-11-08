@@ -163,7 +163,7 @@ func runEvalPromise(ctx context.Context, js string, out any) error {
 		return err
 	}
 	if exc != nil {
-		return fmt.Errorf("js exception: %s", exc.Text)
+		return &JavaScriptEvalError{Cause: exc}
 	}
 	if res == nil || len(res.Value) == 0 || out == nil {
 		return nil

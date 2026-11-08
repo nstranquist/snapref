@@ -521,7 +521,7 @@ func TextOn(parent context.Context, taskCtx context.Context, selector string, ti
 // NavigateOn docs for why we don't WithTimeout the tab context.
 func EvaluateOn(parent context.Context, taskCtx context.Context, js string, out any, timeout time.Duration) error {
 	return runWithTimeout(parent, taskCtx, timeout, func(ctx context.Context) error {
-		return chromedp.Run(ctx, chromedp.Evaluate(js, out))
+		return evaluationError(chromedp.Run(ctx, chromedp.Evaluate(js, out)))
 	})
 }
 

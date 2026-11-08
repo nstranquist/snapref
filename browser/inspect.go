@@ -63,7 +63,13 @@ type InspectReport struct {
 }
 
 // ObserverCommand is the sanitized command record consumed by observers.
+const StatelessTelemetryCohort = "stateless-v1"
+
+// Cohort and RunKind are explicit producer metadata, never inferred from text.
 type ObserverCommand struct {
+	Cohort     string         `json:"cohort,omitempty"`
+	RunKind    string         `json:"run_kind,omitempty"`
+	ReasonCode string         `json:"reason_code,omitempty"`
 	Command    string         `json:"command"`
 	Operation  string         `json:"operation,omitempty"`
 	ErrorClass ErrorClass     `json:"error_class,omitempty"`
@@ -209,6 +215,18 @@ func AppendEvent(event ObserverEvent) error {
 		}
 		if event.Command.ErrorClass == "" {
 			event.Command.ErrorClass = event.ErrorClass
+		}
+	}
+	if event.Command != nil {
+		if event.Command.ReasonCode == "" && !event.Command.OK {
+			event.Command.ReasonCode = ErrorClassReason(event.Command.ErrorClass)
+		}
+		if event.Command.RunKind == "" {
+			// Mark controlled negative probes at production time, without excluding
+			// them from health statistics or rewriting old history.
+			if os.Getenv("SNAPREF_RUN_KIND") == "negative-probe" {
+				event.Command.RunKind = "negative-probe"
+			}
 		}
 	}
 	if event.ErrorClass == "" && event.Error != "" {

@@ -126,7 +126,7 @@ func rawEvalValue(ctx context.Context, s *Session, url, js string, await bool, t
 		if r.ExceptionDetails.Exception != nil && r.ExceptionDetails.Exception.Description != "" {
 			msg = r.ExceptionDetails.Exception.Description
 		}
-		return nil, fmt.Errorf("eval threw: %s", msg)
+		return nil, &JavaScriptEvalError{Cause: fmt.Errorf("eval threw: %s", msg)}
 	}
 	return r.Result.Value, nil
 }
@@ -207,7 +207,7 @@ func rawEvalIntoTarget(ctx context.Context, s *Session, targetType, targetURLPre
 		if result.ExceptionDetails.Exception != nil && result.ExceptionDetails.Exception.Description != "" {
 			msg = result.ExceptionDetails.Exception.Description
 		}
-		return fmt.Errorf("target eval threw: %s", msg)
+		return &JavaScriptEvalError{Cause: fmt.Errorf("target eval threw: %s", msg)}
 	}
 	if out == nil || len(result.Result.Value) == 0 {
 		return nil

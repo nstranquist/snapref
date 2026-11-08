@@ -96,7 +96,7 @@ func SelectOn(parent context.Context, taskCtx context.Context, target, optionLab
 		}
 		var selected bool
 		if err := chromedp.Run(ctx, chromedp.Evaluate(expression, &selected)); err != nil {
-			return fmt.Errorf("select option: %w", err)
+			return fmt.Errorf("select option: %w", selectionError(err))
 		}
 		if !selected {
 			return errors.New("select option: browser did not confirm the selection")

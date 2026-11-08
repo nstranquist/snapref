@@ -247,3 +247,17 @@ encode video or GIF require `ffmpeg` on PATH; still-shot packs do not.
 Apache-2.0. See `SECURITY.md`, `docs/VERSIONING.md`, `NOTICE`,
 `THIRD_PARTY_NOTICES.md`, and the bundled `third_party/licenses/` texts
 before redistribution.
+
+### Failure telemetry
+
+Command events use schema version 3. Failed commands include a bounded
+`reason_code`; exception text, caller expressions and credential URLs are not
+copied into that field. JavaScript exceptions are caller errors. Failed option
+selection is a selector error. Transport failures and deadlines keep their types.
+
+Newly instrumented stateless `eval` and `screenshot` commands use the
+`stateless-v1` cohort. `stats` reports its counts and rate under `stateless`.
+The historical totals and the 6% health gate keep their original denominator.
+Set `SNAPREF_RUN_KIND=negative-probe` for an intentional failure probe. This
+marks new events when they are written; probes still count in their cohort.
+Existing event history is preserved.

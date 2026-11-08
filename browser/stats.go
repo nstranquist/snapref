@@ -56,14 +56,24 @@ type FindingsStats struct {
 }
 
 // BrowserStats is the full computed summary.
+// CommandCohortStats keeps newly instrumented commands out of the historical
+// health denominator while exposing their complete counts and error rate.
+type CommandCohortStats struct {
+	TotalEvents     int                `json:"total_events"`
+	NonOK           int                `json:"non_ok"`
+	ErrorRatePct    float64            `json:"error_rate_pct"`
+	FailuresByClass map[ErrorClass]int `json:"failures_by_class,omitempty"`
+}
+
 type BrowserStats struct {
-	Window            string   `json:"window,omitempty"`
-	Since             string   `json:"since,omitempty"`
-	TotalEvents       int      `json:"total_events"`
-	ExcludedSynthetic int      `json:"excluded_synthetic,omitempty"`
-	Sessions          int      `json:"sessions"`
-	SessionNames      []string `json:"session_names,omitempty"`
-	NonOK             int      `json:"non_ok"`
+	Stateless         CommandCohortStats `json:"stateless"`
+	Window            string             `json:"window,omitempty"`
+	Since             string             `json:"since,omitempty"`
+	TotalEvents       int                `json:"total_events"`
+	ExcludedSynthetic int                `json:"excluded_synthetic,omitempty"`
+	Sessions          int                `json:"sessions"`
+	SessionNames      []string           `json:"session_names,omitempty"`
+	NonOK             int                `json:"non_ok"`
 	// AssertionFailures are non-ok rows of class "assertion": a gate or assert
 	// step that ran and found a page defect (console --fail-on-error tripping,
 	// script assert_* failing). The tool worked, so they count in NonOK but not
@@ -156,6 +166,18 @@ func ReadStats(opts StatsOptions) (*BrowserStats, error) {
 		}
 		if isSyntheticFixtureEvent(ev) {
 			st.ExcludedSynthetic++
+			return nil
+		}
+		if ev.Command.Cohort == StatelessTelemetryCohort {
+			st.Stateless.TotalEvents++
+			if !ev.Command.OK {
+				st.Stateless.NonOK++
+				if st.Stateless.FailuresByClass == nil {
+					st.Stateless.FailuresByClass = map[ErrorClass]int{}
+				}
+				st.Stateless.FailuresByClass[ev.Command.ErrorClass]++
+			}
+			st.Stateless.ErrorRatePct = round1(float64(st.Stateless.NonOK) / float64(st.Stateless.TotalEvents) * 100)
 			return nil
 		}
 		st.TotalEvents++

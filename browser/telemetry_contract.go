@@ -9,7 +9,7 @@ import (
 	"github.com/nstranquist/snapref/contract"
 )
 
-const BrowserTelemetrySchemaVersion = 2
+const BrowserTelemetrySchemaVersion = 3
 
 type ErrorClass string
 
@@ -60,6 +60,14 @@ func ClassifyError(err error) ErrorClass {
 	}
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		return ErrorClassTimeout
+	}
+	var expressionErr *JavaScriptEvalError
+	if errors.As(err, &expressionErr) {
+		return ErrorClassUsage
+	}
+	var selectionErr *SelectOptionError
+	if errors.As(err, &selectionErr) {
+		return ErrorClassSelector
 	}
 	var refErr *SnapshotRefError
 	if errors.As(err, &refErr) {
