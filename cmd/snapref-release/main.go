@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/nstranquist/snapref/processtree"
+	"github.com/nstranquist/snapref/provenance"
 )
 
 type target struct {
@@ -241,7 +242,11 @@ func validateReleaseVersion(root string) (string, error) {
 func build(root string, t target, output string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	command := processtree.CommandContext(ctx, "go", "build", "-mod=readonly", "-trimpath", "-buildvcs=false", "-ldflags=-s -w -buildid=", "-o", output, "./cmd/snapref")
+	digest, _, err := provenance.Digest(root)
+	if err != nil {
+		return fmt.Errorf("source provenance: %w", err)
+	}
+	command := processtree.CommandContext(ctx, "go", "build", "-mod=readonly", "-trimpath", "-buildvcs=false", "-ldflags="+provenance.LinkFlags(digest, "", "candidate"), "-o", output, "./cmd/snapref")
 	command.Dir = root
 	command.Env = releaseGoEnvironment(map[string]string{
 		"CGO_ENABLED": "0",

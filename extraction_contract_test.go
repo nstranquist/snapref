@@ -12,7 +12,18 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/nstranquist/snapref/provenance"
 )
+
+func TestFactorySourcePin(t *testing.T) {
+	if _, err := os.Stat("catalog.yaml"); os.IsNotExist(err) {
+		t.Skip("canonical standalone checkout")
+	}
+	if err := provenance.VerifyPin("."); err != nil {
+		t.Fatal(err)
+	}
+}
 
 type extractionContract struct {
 	SchemaVersion int    `json:"schema_version"`
@@ -48,6 +59,7 @@ func TestExtractionContract(t *testing.T) {
 func sharedSourceDigest(root string) (string, error) {
 	excludedFiles := map[string]bool{
 		"EXTRACTION.json":             true,
+		"SOURCE.json":                 true,
 		"RELEASE_CHECKLIST.md":        true,
 		"catalog.yaml":                true,
 		"coverage.out":                true,

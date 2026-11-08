@@ -15,6 +15,7 @@ import (
 	"github.com/nstranquist/snapref/browser"
 	"github.com/nstranquist/snapref/browser/skills"
 	"github.com/nstranquist/snapref/mcp"
+	"github.com/nstranquist/snapref/provenance"
 )
 
 const version = "0.2.0-rc.2"
@@ -33,6 +34,12 @@ func run(args []string) error {
 	}
 	switch args[0] {
 	case "version", "--version":
+		if len(args) == 2 && args[1] == "--json" {
+			return emit(provenance.Current(version))
+		}
+		if len(args) != 1 {
+			return errors.New("usage: snapref version [--json]")
+		}
 		fmt.Println(version)
 		return nil
 	case "doctor":
@@ -799,6 +806,8 @@ func serveMCP() error {
 		AllowHostRead:  truthy(os.Getenv("SNAPREF_MCP_ALLOW_HOST_READ")),
 		AllowHostWrite: truthy(os.Getenv("SNAPREF_MCP_ALLOW_HOST_WRITE")),
 		AllowOrigins:   splitCSV(os.Getenv("SNAPREF_MCP_ALLOW_ORIGINS")),
+		AllowHosts:     policyCSV(os.Getenv("SNAPREF_MCP_ALLOW_HOSTS")),
+		ExactOrigins:   policyCSV(os.Getenv("SNAPREF_MCP_EXACT_ORIGINS")),
 		Audit:          os.Stderr,
 	})
 }
@@ -820,6 +829,18 @@ func splitCSV(value string) []string {
 		}
 	}
 	return out
+}
+
+// Preserve empty entries in an explicit policy so malformed grants fail closed.
+func policyCSV(value string) []string {
+	if value == "" {
+		return nil
+	}
+	items := strings.Split(value, ",")
+	for i := range items {
+		items[i] = strings.TrimSpace(items[i])
+	}
+	return items
 }
 
 func emit(value any) error {
@@ -851,7 +872,7 @@ Usage:
   snapref demo mcp-policy
   snapref demo ref-integrity [--runtime <kind>]
   snapref mcp
-  snapref version
+  snapref version [--json]
 
 Headless is the default. Named sessions auto-close after 10m without browser
 operations; override with --idle-timeout or SNAPREF_BROWSER_IDLE_TIMEOUT, or

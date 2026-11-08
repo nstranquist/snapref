@@ -1,5 +1,20 @@
 # SnapRef
 
+This repository is the authoritative engine source. Factory consumers use a
+generated, revision-bound source pin; engine changes start here. A local
+development build is distinct from the published release even when its SemVer
+is the same: `snapref version --json` reports source digest and build kind.
+
+MCP navigation grants use `SNAPREF_MCP_ALLOW_HOSTS` for hosts and their subdomains,
+or `SNAPREF_MCP_EXACT_ORIGINS` for exact HTTP(S) scheme, host and effective port.
+Comma-separated grants combine by intersection when both policies are set.
+Empty policies impose no navigation restriction. The legacy
+`SNAPREF_MCP_ALLOW_ORIGINS` remains a host policy and ignores scheme and port.
+These grants apply to URL-bearing requests; they do not isolate redirects,
+scripts or browser network traffic. Driving permissions are separate. Audit
+output is best effort; a failed or short write emits a diagnostic on stderr
+without turning an already completed action into a retryable failure.
+
 [![ci](https://github.com/nstranquist/snapref/actions/workflows/ci.yml/badge.svg)](https://github.com/nstranquist/snapref/actions/workflows/ci.yml)
 
 SnapRef is a dependency-light, local-first browser automation core for agents:

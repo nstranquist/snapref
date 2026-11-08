@@ -8,8 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
-	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -32,11 +31,17 @@ type Options struct {
 	// (e.g. "browser_navigate") that are individually enabled. A drive tool runs
 	// iff AllowDrive is true OR it is in this set. Ignored when AllowDrive is true.
 	AllowedTools map[string]bool
-	// AllowOrigins, when non-empty, restricts URL-bearing tools (navigate/fetch)
-	// to these origins (host exact or subdomain suffix; scheme/port ignored).
-	// Empty = no restriction (operator opted into driving).
+	// AllowOrigins is the legacy HOST allowlist (scheme/port ignored).
+	// Deprecated: use AllowHosts or ExactOrigins. Empty means unrestricted.
 	AllowOrigins []string
-	Audit        io.Writer // nil = no audit log; every actuation attempt is recorded
+	// AllowHosts matches exact hosts and their subdomains, across schemes/ports.
+	AllowHosts []string
+	// ExactOrigins matches HTTP(S) scheme, hostname and effective port exactly.
+	// When multiple policies are set, a URL must satisfy ALL of them. These
+	// constrain URL-bearing requests, not redirects, page scripts or network I/O.
+	ExactOrigins []string
+	Audit        io.Writer // optional best-effort audit; failures emit a diagnostic
+	Diagnostics  io.Writer // audit failure diagnostics; defaults to stderr
 	Now          func() time.Time
 }
 
@@ -77,11 +82,15 @@ type rpcError struct {
 }
 
 type server struct {
-	opts Options
+	opts        Options
+	auditFailed bool
 }
 
 // Serve runs the newline-delimited JSON-RPC 2.0 stdio server until in closes.
 func Serve(in io.Reader, out io.Writer, opts Options) error {
+	if err := ValidatePolicy(opts); err != nil {
+		return err
+	}
 	if opts.Driver == nil {
 		opts.Driver = NewDriver()
 	}
@@ -778,38 +787,13 @@ func (s *server) checkOrigin(tool, session, rawurl string) string {
 		return ""
 	}
 	s.audit(tool, session, false, false, "origin not allowlisted: "+rawurl)
-	return "blocked: " + rawurl + " is not in the navigation allowlist (SNAPREF_MCP_ALLOW_ORIGINS)"
+	return "blocked: URL is not in the navigation allowlist policy (SNAPREF_MCP_ALLOW_HOSTS / SNAPREF_MCP_EXACT_ORIGINS; legacy SNAPREF_MCP_ALLOW_ORIGINS)"
 }
 
-// originAllowed reports whether rawurl's host matches the configured allowlist.
-// An empty allowlist allows everything. Matching is host exact or subdomain
-// suffix; scheme and port are ignored.
+// originAllowed applies all configured navigation policies; it is not network
+// isolation. Unconfigured policies impose no restriction.
 func (s *server) originAllowed(rawurl string) bool {
-	if len(s.opts.AllowOrigins) == 0 {
-		return true
-	}
-	u, err := url.Parse(rawurl)
-	if err != nil || u.Hostname() == "" {
-		return false
-	}
-	host := u.Hostname()
-	for _, a := range s.opts.AllowOrigins {
-		a = strings.TrimSpace(a)
-		if a == "" {
-			continue
-		}
-		if i := strings.Index(a, "://"); i >= 0 {
-			a = a[i+3:]
-		}
-		a = strings.TrimSuffix(a, "/")
-		if h, _, splitErr := net.SplitHostPort(a); splitErr == nil {
-			a = h
-		}
-		if host == a || strings.HasSuffix(host, "."+a) {
-			return true
-		}
-	}
-	return false
+	return navigationAllowed(s.opts, rawurl)
 }
 
 // runDrive executes a gated actuation, auditing the outcome.
@@ -833,6 +817,22 @@ func (s *server) audit(tool, session string, allowed, ok bool, detail string) {
 	if detail != "" {
 		rec["detail"] = auditDetail(tool, allowed, ok, detail)
 	}
-	b, _ := json.Marshal(rec)
-	_, _ = s.opts.Audit.Write(append(b, '\n'))
+	b, err := json.Marshal(rec)
+	if err == nil {
+		b = append(b, '\n')
+		var n int
+		n, err = s.opts.Audit.Write(b)
+		if n != len(b) && err == nil {
+			err = io.ErrShortWrite
+		}
+	}
+	if err != nil && !s.auditFailed {
+		s.auditFailed = true
+		diagnostic := s.opts.Diagnostics
+		if diagnostic == nil {
+			diagnostic = os.Stderr
+		}
+		// Do not expose a writer error: it can contain private paths or data.
+		fmt.Fprintln(diagnostic, "snapref mcp: audit write failed; audit stream is incomplete")
+	}
 }

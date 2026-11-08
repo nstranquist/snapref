@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -11,6 +12,46 @@ import (
 	"testing"
 	"time"
 )
+
+func TestVersionJSONReportsSourceIdentity(t *testing.T) {
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := os.Stdout
+	os.Stdout = writer
+	err = run([]string{"version", "--json"})
+	os.Stdout = old
+	writer.Close()
+	body, readErr := io.ReadAll(reader)
+	reader.Close()
+	if err != nil || readErr != nil {
+		t.Fatalf("version: %v %v", err, readErr)
+	}
+	var info struct {
+		SchemaVersion int    `json:"schema_version"`
+		Version       string `json:"version"`
+		Target        string `json:"target"`
+		BuildKind     string `json:"build_kind"`
+	}
+	if err := json.Unmarshal(body, &info); err != nil {
+		t.Fatal(err)
+	}
+	if info.SchemaVersion != 1 || info.Version != version || info.Target == "" || info.BuildKind == "" {
+		t.Fatalf("incomplete identity: %s", body)
+	}
+	if err := run([]string{"version", "--unknown"}); err == nil {
+		t.Fatal("unknown version flag accepted")
+	}
+}
+
+func TestExplicitMalformedPolicyDoesNotBecomeUnrestricted(t *testing.T) {
+	for _, value := range []string{",", " ", "example.com,"} {
+		if got := policyCSV(value); len(got) == 0 {
+			t.Fatalf("policy %q became unrestricted", value)
+		}
+	}
+}
 
 func TestVersionMatchesReleaseFile(t *testing.T) {
 	body, err := os.ReadFile(filepath.Join("..", "..", "VERSION"))
