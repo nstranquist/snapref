@@ -40,6 +40,11 @@ events preserve the first failed step's class and reason with a nonzero exit.
 Event logs and persisted run manifests omit raw step error text; immediate
 command output retains the full diagnostic. Existing stored rows are unchanged.
 
+Telemetry `build_version` uses a module version or Go VCS revision when present.
+Reproducible builds without a VCS stamp fall back to the embedded source revision,
+then `sha256:` plus the first twelve source-digest characters. Only builds with
+no source identity use `dev`.
+
 Executable snapshot refs are ephemeral capabilities, not durable IDs. Their
 text format can gain a new prefix only in a minor release. Previously issued
 refs are valid only for the latest inventory and live fingerprint by design.

@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/nstranquist/snapref/provenance"
 )
 
 func TestClassifyErrorClosedClasses(t *testing.T) {
@@ -87,5 +90,30 @@ func TestLegacyEventStillDecodes(t *testing.T) {
 func TestBrowserBuildVersionIsNeverEmpty(t *testing.T) {
 	if BrowserBuildVersion() == "" {
 		t.Fatal("build version is empty")
+	}
+}
+
+func TestBrowserBuildVersionPreservesSourceIdentityWithoutVCSStamp(t *testing.T) {
+	const revision = "abcdef0123456789"
+	source := provenance.Info{SourceRevision: revision, SourceSHA256: "9876543210abcdef"}
+	for _, tc := range []struct {
+		name   string
+		info   *debug.BuildInfo
+		source provenance.Info
+		want   string
+	}{
+		{"embedded revision without build info", nil, source, "abcdef012345"},
+		{"reproducible candidate", &debug.BuildInfo{Main: debug.Module{Version: "(devel)"}}, source, "abcdef012345"},
+		{"release source digest", nil, provenance.Info{SourceSHA256: source.SourceSHA256}, "sha256:9876543210ab"},
+		{"dirty source", nil, provenance.Info{SourceRevision: revision, Modified: true}, "abcdef012345+dirty"},
+		{"module version takes precedence", &debug.BuildInfo{Main: debug.Module{Version: "v1.2.3"}}, source, "v1.2.3"},
+		{"host VCS takes precedence", &debug.BuildInfo{Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: "123456abcdef7890"}, {Key: "vcs.modified", Value: "true"}}}, source, "123456abcdef+dirty"},
+		{"unidentified development", nil, provenance.Info{}, "dev"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := browserBuildVersion(tc.info, tc.source); got != tc.want {
+				t.Fatalf("build version = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }

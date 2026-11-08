@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/nstranquist/snapref/contract"
+	"github.com/nstranquist/snapref/provenance"
 )
 
 const BrowserTelemetrySchemaVersion = 3
@@ -27,7 +28,14 @@ const (
 func BrowserBuildVersion() string {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
-		return "dev"
+		info = nil
+	}
+	return browserBuildVersion(info, provenance.Current(""))
+}
+
+func browserBuildVersion(info *debug.BuildInfo, source provenance.Info) string {
+	if info == nil {
+		info = &debug.BuildInfo{}
 	}
 	if info.Main.Version != "" && info.Main.Version != "(devel)" {
 		return info.Main.Version
@@ -46,7 +54,21 @@ func BrowserBuildVersion() string {
 		revision = revision[:12]
 	}
 	if revision == "" {
-		return "dev"
+		revision = source.SourceRevision
+		dirty = source.Modified
+		if revision == "" && source.SourceSHA256 != "" {
+			digest := source.SourceSHA256
+			if len(digest) > 12 {
+				digest = digest[:12]
+			}
+			return "sha256:" + digest
+		}
+		if revision == "" {
+			return "dev"
+		}
+		if len(revision) > 12 {
+			revision = revision[:12]
+		}
 	}
 	if dirty {
 		return revision + "+dirty"

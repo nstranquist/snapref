@@ -7,6 +7,8 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ### Fixed
 
+- Telemetry identifies reproducible builds by embedded source revision or digest
+  when Go VCS metadata is absent, so reviewed releases do not report `dev`.
 - Script failure events and stored run manifests retain typed, bounded reason
   codes without raw page exception text. Failed run summaries keep the first
   failed step's cause and nonzero exit. Immediate output keeps full diagnostics.
