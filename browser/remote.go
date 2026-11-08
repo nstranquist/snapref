@@ -143,9 +143,8 @@ func ensurePageTargetID(ctx context.Context, port int) (target.ID, bool) {
 }
 
 // firstPageWebSocketURL returns the per-page websocket debugger URL for the
-// first attached `page` target. Using this URL directly avoids chromedp's
-// Context lifecycle (which closes the target on cleanup) — useful for
-// one-shot raw CDP calls that must preserve the page across exec invocations.
+// first attached `page` target, for raw CDP calls that release their connection
+// without closing the persistent page.
 func firstPageWebSocketURL(port int) (string, bool) {
 	return firstPageWebSocketURLContext(context.Background(), port)
 }

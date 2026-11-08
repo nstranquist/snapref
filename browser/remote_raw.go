@@ -13,14 +13,10 @@ import (
 	"github.com/go-json-experiment/json/jsontext"
 )
 
-// Raw-CDP session ops. chromedp's RemoteAllocator + WithTargetID combination
-// intermittently closes the session's page target when an exec process exits —
-// the "no page target on session" failure, which also yields blank/black
-// screenshots (the next op recreates an empty about:blank, or a stale capture is
-// taken). Dialing the page's own websocket and speaking CDP directly never
-// touches that lifecycle, so the tab survives across exec calls. This is the
-// pattern RemoteScreenshotCurrent already used; eval + navigate now share it, so
-// a navigate→eval→eval→screenshot flow keeps one stable, paint-fresh tab.
+// Raw-CDP session operations connect directly to a target's websocket and
+// release only that connection. They share remoteCtx's ownership rule: an
+// operation does not own the persistent page. Eval, navigation and current-page
+// screenshots use this path without creating a chromedp target context.
 
 // cdpTransport is the subset of chromedp's dialed connection we use.
 type cdpTransport interface {
@@ -148,10 +144,8 @@ func rawEvalInto(ctx context.Context, s *Session, url, js string, await bool, ou
 }
 
 // rawEvalIntoTarget evaluates against an existing target selected by type and
-// URL prefix without giving chromedp ownership of that target. A chromedp
-// context created with WithTargetID closes the attached target on cancellation;
-// direct websocket CDP preserves extension pages and service workers across
-// multiple acceptance steps.
+// URL prefix through its own websocket. Releasing this connection preserves
+// extension pages and service workers across multiple acceptance steps.
 func rawEvalIntoTarget(ctx context.Context, s *Session, targetType, targetURLPrefix, js string, await bool, out any, timeout time.Duration) error {
 	if timeout == 0 {
 		timeout = 30 * time.Second
