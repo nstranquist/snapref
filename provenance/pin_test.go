@@ -22,7 +22,7 @@ func TestPinDetectsEditedMissingAndUnexpectedFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256(body)
-	pin, err := json.Marshal(map[string]any{"schema_version": 1, "authority": "github.com/nstranquist/snapref", "source": map[string]any{"revision": strings.Repeat("a", 40), "sha256": digest, "files": len(paths)}, "files": map[string]string{"source.txt": hex.EncodeToString(sum[:])}})
+	pin, err := json.Marshal(map[string]any{"schema_version": 1, "authority": "github.com/nstranquist/snapref", "source": map[string]any{"revision": strings.Repeat("a", 40), "sha256": digest, "files": len(paths)}, "files": map[string]string{"source.txt": "sha256:" + hex.EncodeToString(sum[:])}})
 	if err != nil {
 		t.Fatal(err)
 	}

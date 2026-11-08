@@ -68,7 +68,8 @@ func VerifyPin(root string) error {
 			return err
 		}
 		sum := sha256.Sum256(body)
-		if hex.EncodeToString(sum[:]) != want {
+		got := hex.EncodeToString(sum[:])
+		if got != want && "sha256:"+got != want {
 			return fmt.Errorf("pinned source changed: %s; edit the canonical repository and export", rel)
 		}
 		seen[rel] = true
