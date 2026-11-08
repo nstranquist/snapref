@@ -30,6 +30,7 @@ type Result struct {
 	ScreenshotHeightPX int                `json:"screenshot_height_px,omitempty"`
 	Error              string             `json:"error,omitempty"`
 	ErrorClass         browser.ErrorClass `json:"error_class,omitempty"`
+	ReasonCode         string             `json:"reason_code,omitempty"`
 }
 
 // RunReport is the full outcome of a Plan run. The cmd layer persists it as the
@@ -219,6 +220,7 @@ func (e *execCtx) run(st Step) (string, Result) {
 		res.OK = false
 		res.Error = err.Error()
 		res.ErrorClass = browser.ClassifyError(err)
+		res.ReasonCode = browser.ErrorReason(err)
 		// Keep the evidence a failed step still produced, as an assertion
 		// failure does: a console capture that ran but failed (or tripped
 		// fail_on_error) returns its entries with the error.
@@ -259,6 +261,9 @@ func (e *execCtx) run(st Step) (string, Result) {
 }
 
 func (e *execCtx) record(value string, res Result) (string, Result) {
+	if !res.OK {
+		res.ErrorClass, res.ReasonCode = resultFailureCause(res)
+	}
 	e.report.Steps = append(e.report.Steps, res)
 	emitLine(e.sink, res)
 	if e.opts.Telemetry != nil {

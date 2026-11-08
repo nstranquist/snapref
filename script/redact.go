@@ -50,6 +50,12 @@ func redactReportForManifest(rep *RunReport) *RunReport {
 	cp.Steps = make([]Result, len(rep.Steps))
 	for i, s := range rep.Steps {
 		rs := s
+		if !s.OK && !s.Skipped {
+			rs.ErrorClass, rs.ReasonCode = resultFailureCause(s)
+		}
+		// Exceptions can contain credentials, page text, selectors, or script
+		// source. Keep their safe cause here and full text only in live output.
+		rs.Error = ""
 		if len(s.Captured) > 0 {
 			rc := make(map[string]any, len(s.Captured))
 			for k, v := range s.Captured {

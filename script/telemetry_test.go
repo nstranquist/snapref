@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,70 @@ import (
 
 	"github.com/nstranquist/snapref/browser"
 )
+
+func TestScriptTypedFailuresKeepSafeCausesWithoutPersistingPageText(t *testing.T) {
+	const secret = "page-exception-secret://user:password@example.test?token=hidden"
+	for _, tc := range []struct {
+		name   string
+		step   Step
+		err    error
+		class  browser.ErrorClass
+		reason string
+	}{
+		{"eval", Step{Verb: VerbEval, JS: "bad()"}, &browser.JavaScriptEvalError{Cause: errors.New(secret)}, browser.ErrorClassUsage, "javascript_exception"},
+		{"select", Step{Verb: VerbSelect, Selector: "select", Option: "missing"}, &browser.SelectOptionError{Cause: errors.New(secret)}, browser.ErrorClassSelector, "select_option_failed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("SNAPREF_HOME", home)
+			t.Setenv("SNAPREF_RUN_KIND", "negative-probe")
+			f := newFake()
+			f.fail[tc.name] = tc.err
+			var live strings.Builder
+			rep, _ := NewRunner(f).Run(context.Background(), Plan{Name: "safe-causes", Session: "s", Steps: []Step{tc.step}}, RunOptions{AllowDrive: true, Sink: &live, Telemetry: NewFileTelemetry()})
+			if rep.OK || rep.Steps[0].ErrorClass != tc.class || rep.Steps[0].ReasonCode != tc.reason || !strings.Contains(live.String(), secret) {
+				t.Fatalf("live result lost cause: %+v, output=%s", rep, live.String())
+			}
+			rows, _, err := browser.ReadCommandEventFamily()
+			if err != nil || len(rows) != 3 {
+				t.Fatalf("rows=%+v err=%v", rows, err)
+			}
+			for _, row := range rows[1:] {
+				if row.Error != "" || row.Command.OK || row.Command.ExitCode != 1 || row.Command.ErrorClass != tc.class || row.Command.ReasonCode != tc.reason || row.Command.RunKind != "negative-probe" {
+					t.Fatalf("durable row lost safe cause: %+v", row)
+				}
+			}
+			manifest, _ := ManifestPath(rep.RunID)
+			for _, path := range []string{filepath.Join(home, "events.jsonl"), manifest} {
+				body, err := os.ReadFile(path)
+				if err != nil || strings.Contains(string(body), secret) || !strings.Contains(string(body), tc.reason) {
+					t.Fatalf("unsafe or missing durable cause in %s: %s, %v", path, body, err)
+				}
+			}
+		})
+	}
+}
+
+func TestScriptTelemetryRejectsArbitraryReasonText(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("SNAPREF_HOME", home)
+	const secret = "untrusted-page-secret"
+	r := Result{Error: secret, ReasonCode: secret, ErrorClass: browser.ErrorClassUsage}
+	tel := NewFileTelemetry()
+	rep := &RunReport{RunID: "untrusted-reason", Session: "s", Steps: []Result{r}}
+	tel.Step(rep, r)
+	tel.Finish(rep)
+	if tel.LastErr != nil {
+		t.Fatal(tel.LastErr)
+	}
+	manifest, _ := ManifestPath(rep.RunID)
+	for _, path := range []string{filepath.Join(home, "events.jsonl"), manifest} {
+		body, err := os.ReadFile(path)
+		if err != nil || strings.Contains(string(body), secret) || !strings.Contains(string(body), "invalid_input") {
+			t.Fatalf("unsafe reason persisted in %s: %s, %v", path, body, err)
+		}
+	}
+}
 
 func TestFileTelemetryWritesEventsAndManifest(t *testing.T) {
 	home := t.TempDir()

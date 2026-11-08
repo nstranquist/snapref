@@ -35,6 +35,11 @@ separate health totals; they do not change the historical stateful denominator.
 from their cohort. Version 2 schemas remain in release archives so consumers can
 validate historical records without rewriting them.
 
+Script steps also carry the optional bounded `reason_code`. Failed run summary
+events preserve the first failed step's class and reason with a nonzero exit.
+Event logs and persisted run manifests omit raw step error text; immediate
+command output retains the full diagnostic. Existing stored rows are unchanged.
+
 Executable snapshot refs are ephemeral capabilities, not durable IDs. Their
 text format can gain a new prefix only in a minor release. Previously issued
 refs are valid only for the latest inventory and live fingerprint by design.

@@ -53,8 +53,11 @@ func (t *FileTelemetry) Begin(rep *RunReport) {
 // Step records one browser.step event per executed step.
 func (t *FileTelemetry) Step(rep *RunReport, r Result) {
 	exit := 0
+	var class browser.ErrorClass
+	var reason string
 	if !r.OK {
 		exit = 1
+		class, reason = resultFailureCause(r)
 	}
 	data := map[string]any{
 		"run_id": rep.RunID,
@@ -77,10 +80,11 @@ func (t *FileTelemetry) Step(rep *RunReport, r Result) {
 	t.note(browser.AppendEvent(browser.ObserverEvent{
 		Kind:       browser.KindStep,
 		Session:    rep.Session,
-		Error:      r.Error,
-		ErrorClass: r.ErrorClass,
+		ErrorClass: class,
 		Command: &browser.ObserverCommand{
 			Command:    "script:" + string(r.Verb),
+			ReasonCode: reason,
+			ErrorClass: class,
 			ExitCode:   exit,
 			OK:         r.OK,
 			DurationMS: r.DurationMS,
@@ -93,18 +97,16 @@ func (t *FileTelemetry) Step(rep *RunReport, r Result) {
 func (t *FileTelemetry) Finish(rep *RunReport) {
 	exit := 0
 	var class browser.ErrorClass
+	var reason string
 	if !rep.OK {
 		exit = 1
 		class = browser.ErrorClassInternal
+		reason = browser.ErrorClassReason(class)
 		for _, step := range rep.Steps {
 			if step.OK || step.Skipped {
 				continue
 			}
-			if step.ErrorClass != "" {
-				class = step.ErrorClass
-			} else if step.Error != "" {
-				class = browser.ClassifyError(errors.New(step.Error))
-			}
+			class, reason = resultFailureCause(step)
 			break
 		}
 	}
@@ -117,6 +119,7 @@ func (t *FileTelemetry) Finish(rep *RunReport) {
 			Command:    "script:end",
 			ExitCode:   exit,
 			ErrorClass: class,
+			ReasonCode: reason,
 			OK:         rep.OK,
 			Data: map[string]any{
 				"run_id": rep.RunID,
@@ -126,6 +129,26 @@ func (t *FileTelemetry) Finish(rep *RunReport) {
 		},
 	}))
 	t.note(t.writeManifest(rep))
+}
+
+// Preserve typed causes before an error becomes display text. Legacy SDK
+// results still get a class fallback. Never persist arbitrary reason strings.
+func resultFailureCause(r Result) (browser.ErrorClass, string) {
+	class := r.ErrorClass
+	if class == "" && r.Error != "" {
+		class = browser.ClassifyError(errors.New(r.Error))
+	}
+	if class == "" {
+		class = browser.ErrorClassInternal
+	}
+	switch r.ReasonCode {
+	case "javascript_exception", "select_option_failed", "host_admission_denied",
+		"invalid_input", "policy_denied", "gate_not_satisfied", "selector_failed",
+		"transport_failed", "deadline_exceeded", "product_failed", "command_failure":
+		return class, r.ReasonCode
+	default:
+		return class, browser.ErrorClassReason(class)
+	}
 }
 
 func (t *FileTelemetry) writeManifest(rep *RunReport) error {

@@ -161,6 +161,15 @@ func TestReleaseCurrentSchemasMatchProducer(t *testing.T) {
 	if err := json.Unmarshal(command.Props["reason_code"], &reasons); err != nil {
 		t.Fatal(err)
 	}
+	var stepReasons struct {
+		Enum []string `json:"enum"`
+	}
+	if err := json.Unmarshal(decode(report.Defs["step"]).Props["reason_code"], &stepReasons); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(reasons.Enum, stepReasons.Enum) {
+		t.Fatalf("script and observer reason contracts differ: %v / %v", stepReasons.Enum, reasons.Enum)
+	}
 	allowed := map[string]bool{}
 	for _, reason := range reasons.Enum {
 		allowed[reason] = true

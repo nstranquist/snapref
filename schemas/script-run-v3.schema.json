@@ -45,7 +45,8 @@
         "screenshot_width_px": {"type": "integer", "minimum": 1},
         "screenshot_height_px": {"type": "integer", "minimum": 1},
         "error": {"type": "string"},
-        "error_class": {"$ref": "#/$defs/error_class"}
+        "error_class": {"$ref": "#/$defs/error_class"},
+        "reason_code": {"enum": ["javascript_exception", "select_option_failed", "host_admission_denied", "invalid_input", "policy_denied", "gate_not_satisfied", "selector_failed", "transport_failed", "deadline_exceeded", "product_failed", "command_failure"]}
       },
       "additionalProperties": false
     }
