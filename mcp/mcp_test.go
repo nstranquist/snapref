@@ -473,7 +473,7 @@ func TestConsoleNavigateThenEvalPassesThrough(t *testing.T) {
 	if len(fd.consoleCalls) != 1 || fd.consoleCalls[0].Navigate != "https://x/" || fd.consoleCalls[0].Eval == "" {
 		t.Fatalf("driver opts = %+v", fd.consoleCalls)
 	}
-	if !strings.Contains(audit.String(), "navigate=https://x/ eval errors=0") {
+	if !strings.Contains(audit.String(), "navigate eval errors=0") {
 		t.Fatalf("audit detail missing both triggers: %s", audit.String())
 	}
 }
@@ -737,7 +737,7 @@ func TestConsoleEvalStateReachesPayloadAndAudit(t *testing.T) {
 	if payload.Eval != "navigated" || payload.NavigatedTo != "https://x/desk" || payload.Count != 1 || payload.Error != "" {
 		t.Fatalf("payload = %+v", payload)
 	}
-	if !strings.Contains(audit.String(), "navigate=https://x/login eval=navigated errors=0") {
+	if !strings.Contains(audit.String(), "navigate eval=navigated errors=0") {
 		t.Fatalf("audit detail missing the eval state: %s", audit.String())
 	}
 }

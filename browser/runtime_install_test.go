@@ -18,6 +18,7 @@ import (
 )
 
 func TestInstallRuntimeStableIsVerifiedAtomicAndIdempotent(t *testing.T) {
+	platform := installerFixturePlatform(t)
 	home := t.TempDir()
 	t.Setenv("SNAPREF_HOME", home)
 	t.Setenv("SNAPREF_CHROME", "")
@@ -28,7 +29,6 @@ func TestInstallRuntimeStableIsVerifiedAtomicAndIdempotent(t *testing.T) {
 	server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/stable.json":
-			platform, _ := runtimePlatform()
 			cftPlatform, _ := chromeForTestingPlatform(platform)
 			_ = json.NewEncoder(w).Encode(cftLastKnownGood{Channels: map[string]cftVersion{
 				"Stable": {Version: version, Downloads: cftDownloads{HeadlessShell: []cftDownload{{Platform: cftPlatform, URL: server.URL + "/shell.zip"}}}},
@@ -52,21 +52,21 @@ func TestInstallRuntimeStableIsVerifiedAtomicAndIdempotent(t *testing.T) {
 	probeRuntimeVersion = func(string) (string, error) { return "HeadlessChrome/" + version, nil }
 	t.Cleanup(func() { probeRuntimeVersion = previousProbe })
 
-	result, err := installRuntime(context.Background(), RuntimeInstallOptions{Kind: RuntimeHeadlessShell, Channel: "stable"}, source)
+	result, err := installRuntimeForPlatform(context.Background(), RuntimeInstallOptions{Kind: RuntimeHeadlessShell, Channel: "stable"}, source, func() (string, error) { return platform, nil })
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !result.Downloaded || !result.Selected || !result.Runtime.Verified || result.Runtime.Kind != RuntimeHeadlessShell {
 		t.Fatalf("install result = %+v", result)
 	}
-	resolved, err := ResolveRuntime(RuntimeRequest{Kind: RuntimeHeadlessShell})
+	resolved, _, err := verifyInstalledRuntime(RuntimeHeadlessShell, platform, version)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !resolved.Managed || resolved.Version != version || !strings.Contains(resolved.Path, "chrome-headless-shell") {
 		t.Fatalf("resolved = %+v", resolved)
 	}
-	second, err := installRuntime(context.Background(), RuntimeInstallOptions{Kind: RuntimeHeadlessShell, Channel: "stable"}, source)
+	second, err := installRuntimeForPlatform(context.Background(), RuntimeInstallOptions{Kind: RuntimeHeadlessShell, Channel: "stable"}, source, func() (string, error) { return platform, nil })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,13 +76,13 @@ func TestInstallRuntimeStableIsVerifiedAtomicAndIdempotent(t *testing.T) {
 }
 
 func TestInstallRuntimeExactVersionUsesKnownGoodMetadata(t *testing.T) {
+	platform := installerFixturePlatform(t)
 	home := t.TempDir()
 	t.Setenv("SNAPREF_HOME", home)
 	version := "132.0.6834.0"
 	archive := runtimeZipFixture(t, "chrome/chrome", []byte("fake-chrome"))
 	var server *httptest.Server
 	server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		platform, _ := runtimePlatform()
 		cftPlatform, _ := chromeForTestingPlatform(platform)
 		switch r.URL.Path {
 		case "/known.json":
@@ -104,7 +104,7 @@ func TestInstallRuntimeExactVersionUsesKnownGoodMetadata(t *testing.T) {
 	previousProbe := probeRuntimeVersion
 	probeRuntimeVersion = func(string) (string, error) { return "Google Chrome for Testing " + version, nil }
 	t.Cleanup(func() { probeRuntimeVersion = previousProbe })
-	result, err := installRuntime(context.Background(), RuntimeInstallOptions{Kind: RuntimeChromeForTesting, Version: version}, source)
+	result, err := installRuntimeForPlatform(context.Background(), RuntimeInstallOptions{Kind: RuntimeChromeForTesting, Version: version}, source, func() (string, error) { return platform, nil })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,13 +112,25 @@ func TestInstallRuntimeExactVersionUsesKnownGoodMetadata(t *testing.T) {
 		t.Fatalf("result = %+v", result)
 	}
 	server.Close()
-	second, err := installRuntime(context.Background(), RuntimeInstallOptions{Kind: RuntimeChromeForTesting, Version: version}, source)
+	second, err := installRuntimeForPlatform(context.Background(), RuntimeInstallOptions{Kind: RuntimeChromeForTesting, Version: version}, source, func() (string, error) { return platform, nil })
 	if err != nil {
 		t.Fatalf("verified exact-version retry required metadata: %v", err)
 	}
 	if second.Downloaded || !second.Selected {
 		t.Fatalf("offline exact-version retry = %+v", second)
 	}
+}
+
+func installerFixturePlatform(t *testing.T) string {
+	t.Helper()
+	platform, err := runtimePlatform()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := chromeForTestingPlatform(platform); err != nil {
+		return "linux-amd64"
+	}
+	return platform
 }
 
 func TestExtractRuntimeZipRejectsTraversalAndSymlink(t *testing.T) {

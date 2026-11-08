@@ -230,6 +230,36 @@ func TestLoadJSONRejectsUnknownField(t *testing.T) {
 	}
 }
 
+func TestLoadJSONRequiresOneValue(t *testing.T) {
+	const plan = `{"name":"p","session":"s","steps":[{"verb":"wait","selector":"h1"}]}`
+	for _, suffix := range []string{`{}`, `null`, `false`, `[1]`, `garbage`, `{`} {
+		t.Run(suffix, func(t *testing.T) {
+			if _, err := LoadJSON([]byte(plan + "\n" + suffix)); err == nil {
+				t.Fatal("accepted trailing JSON data")
+			}
+		})
+	}
+	if _, err := LoadJSON([]byte(plan + " \n\t")); err != nil {
+		t.Fatalf("rejected trailing whitespace: %v", err)
+	}
+}
+
+func TestLoadYAMLRequiresOneDocument(t *testing.T) {
+	const plan = "name: p\nsession: s\nsteps:\n  - verb: wait\n    selector: h1\n"
+	for _, suffix := range []string{"---\nname: second\n", "---\n", "---\n["} {
+		t.Run(suffix, func(t *testing.T) {
+			if _, err := LoadYAML([]byte(plan + suffix)); err == nil {
+				t.Fatal("accepted a second YAML document")
+			}
+		})
+	}
+	for _, suffix := range []string{"\n# trailing comment\n", "...\n# trailing comment\n"} {
+		if _, err := LoadYAML([]byte(plan + suffix)); err != nil {
+			t.Fatalf("rejected valid document ending: %v", err)
+		}
+	}
+}
+
 func TestLoadFileMergesVars(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "flow.yaml")

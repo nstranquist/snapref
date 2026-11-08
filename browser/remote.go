@@ -25,29 +25,48 @@ import (
 	"github.com/chromedp/chromedp/kb"
 )
 
-// remoteCtx returns a chromedp context attached to the named session via
-// RemoteAllocator. Caller must invoke both cancel funcs (alloc + task).
+// remoteCtx owns a CDP connection, but does not own the persistent page.
+// Both returned cancellation functions release the connection and are idempotent.
 func remoteCtx(parent context.Context, s *Session) (context.Context, context.CancelFunc, context.CancelFunc, error) {
-	if s.WSURL == "" {
+	if s == nil || s.WSURL == "" {
 		return nil, nil, nil, errors.New("session has no recorded ws_url; reopen it")
 	}
-	// IMPORTANT: parent here is typically a signal.NotifyContext that the
-	// CLI cancels at exit (via `defer stop()`). chromedp 0.15.1's
-	// RemoteAllocator + WithTargetID combination calls Target.closeTarget
-	// on the attached page when ANY ancestor context cancels — which kills
-	// the persistent session's page on every exec call. Symptom on the
-	// next exec: "Failed to open new tab - no browser is open (-32000)".
-	// Detach by giving chromedp a context.Background() that nothing
-	// cancels. The signal context is still honored by callers' own
-	// WithTimeout wrappers around chromedp.Run.
-	allocCtx, _ := chromedp.NewRemoteAllocator(context.Background(), s.WSURL)
-	opts := []chromedp.ContextOption{}
-	if id, ok := ensurePageTargetID(parent, s.Port); ok {
-		opts = append(opts, chromedp.WithTargetID(id))
+	id, ok := ensurePageTargetID(parent, s.Port)
+	if !ok {
+		if err := parent.Err(); err != nil {
+			return nil, nil, nil, err
+		}
+		return nil, nil, nil, errors.New("no page target on session — open or navigate first")
 	}
-	taskCtx, _ := chromedp.NewContext(allocCtx, opts...)
-	noop := func() {}
-	return taskCtx, noop, noop, nil
+	// RemoteAllocator treats an attached page as an owned child and closes it
+	// on cancellation. Connect directly instead. A root chromedp Context with
+	// an already-connected Browser releases its handlers without CloseTarget.
+	// Keep the root free of inherited chromedp ownership; propagate cancellation
+	// explicitly, including a parent that was already canceled.
+	connectionCtx, cancel := context.WithCancel(context.Background())
+	startup := time.AfterFunc(10*time.Second, cancel)
+	defer startup.Stop()
+	stopParent := context.AfterFunc(parent, cancel)
+	closeConnection := func() { stopParent(); cancel() }
+	if err := parent.Err(); err != nil {
+		closeConnection()
+		return nil, nil, nil, err
+	}
+	connected, err := chromedp.NewBrowser(connectionCtx, s.WSURL)
+	if err != nil {
+		closeConnection()
+		return nil, nil, nil, fmt.Errorf("connect persistent browser: %w", err)
+	}
+	taskCtx, _ := chromedp.NewContext(connectionCtx, chromedp.WithTargetID(id), func(c *chromedp.Context) {
+		c.Browser = connected
+	})
+	// Initialize on the connection lifetime, so an operation's deadline cannot
+	// become the target event-loop lifetime.
+	if err := chromedp.Run(taskCtx); err != nil {
+		closeConnection()
+		return nil, nil, nil, fmt.Errorf("attach persistent page: %w", err)
+	}
+	return taskCtx, closeConnection, closeConnection, nil
 }
 
 type cdpTargetListEntry struct {
@@ -60,6 +79,10 @@ type cdpTargetListEntry struct {
 }
 
 func fetchTargetList(port int) ([]cdpTargetListEntry, bool) {
+	return fetchTargetListContext(context.Background(), port)
+}
+
+func fetchTargetListContext(ctx context.Context, port int) ([]cdpTargetListEntry, bool) {
 	if port <= 0 {
 		return nil, false
 	}
@@ -69,7 +92,11 @@ func fetchTargetList(port int) ([]cdpTargetListEntry, bool) {
 			return errors.New("CDP target list must not redirect")
 		},
 	}
-	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d/json", port))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://127.0.0.1:%d/json", port), nil)
+	if err != nil {
+		return nil, false
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, false
 	}
@@ -85,7 +112,11 @@ func fetchTargetList(port int) ([]cdpTargetListEntry, bool) {
 }
 
 func firstPageTargetID(port int) (target.ID, bool) {
-	entries, ok := fetchTargetList(port)
+	return firstPageTargetIDContext(context.Background(), port)
+}
+
+func firstPageTargetIDContext(ctx context.Context, port int) (target.ID, bool) {
+	entries, ok := fetchTargetListContext(ctx, port)
 	if !ok {
 		return "", false
 	}
@@ -101,12 +132,12 @@ func ensurePageTargetID(ctx context.Context, port int) (target.ID, bool) {
 	if port <= 0 {
 		return "", false
 	}
-	if id, ok := firstPageTargetID(port); ok {
+	if id, ok := firstPageTargetIDContext(ctx, port); ok {
 		return id, true
 	}
 	id, err := createDevToolsTarget(ctx, &Session{Port: port}, "about:blank", time.Second)
 	if err != nil || id == "" {
-		return firstPageTargetID(port)
+		return firstPageTargetIDContext(ctx, port)
 	}
 	return id, true
 }
@@ -116,7 +147,11 @@ func ensurePageTargetID(ctx context.Context, port int) (target.ID, bool) {
 // Context lifecycle (which closes the target on cleanup) — useful for
 // one-shot raw CDP calls that must preserve the page across exec invocations.
 func firstPageWebSocketURL(port int) (string, bool) {
-	entries, ok := fetchTargetList(port)
+	return firstPageWebSocketURLContext(context.Background(), port)
+}
+
+func firstPageWebSocketURLContext(ctx context.Context, port int) (string, bool) {
+	entries, ok := fetchTargetListContext(ctx, port)
 	if !ok {
 		return "", false
 	}
@@ -129,18 +164,16 @@ func firstPageWebSocketURL(port int) (string, bool) {
 }
 
 func waitForPageWebSocketURL(ctx context.Context, port int, timeout time.Duration) (string, bool) {
-	deadline := time.NewTimer(timeout)
-	defer deadline.Stop()
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	ticker := time.NewTicker(25 * time.Millisecond)
 	defer ticker.Stop()
 	for {
-		if wsURL, ok := firstPageWebSocketURL(port); ok {
+		if wsURL, ok := firstPageWebSocketURLContext(ctx, port); ok {
 			return wsURL, true
 		}
 		select {
 		case <-ctx.Done():
-			return "", false
-		case <-deadline.C:
 			return "", false
 		case <-ticker.C:
 		}
@@ -156,10 +189,7 @@ func NewRemoteContext(parent context.Context, s *Session) (context.Context, cont
 }
 
 // NavigateOn navigates the given chromedp tab context to url and waits
-// for body. The timeout argument is honored via a goroutine + cancel so
-// it doesn't cancel the underlying tab (chromedp ties tab lifetime to
-// the first context it sees; wrapping taskCtx in WithTimeout would kill
-// the tab when the wrapper expires).
+// for body. The action deadline does not cancel the initialized tab context.
 func NavigateOn(parent context.Context, taskCtx context.Context, url string, timeout time.Duration) error {
 	return runWithTimeout(parent, taskCtx, timeout, func(ctx context.Context) error {
 		return chromedp.Run(ctx,
@@ -496,23 +526,29 @@ func EvaluateOn(parent context.Context, taskCtx context.Context, js string, out 
 	})
 }
 
-// runWithTimeout invokes fn(taskCtx) and returns its error or
-// context.DeadlineExceeded if the timeout fires. It does NOT wrap
-// taskCtx, so the chromedp tab is preserved across calls.
+// runWithTimeout gives the action a bounded child of an initialized tab
+// context. Cancellation stops the action, without canceling the owning tab.
+// fn must honor its context, as all CDP actions do. It finishes before return,
+// so callers never read output that a detached action is still changing.
 func runWithTimeout(parent context.Context, taskCtx context.Context, timeout time.Duration, fn func(context.Context) error) error {
 	if timeout == 0 {
 		timeout = 60 * time.Second
 	}
-	done := make(chan error, 1)
-	go func() { done <- fn(taskCtx) }()
-	select {
-	case err := <-done:
+	ctx, cancel := context.WithTimeout(taskCtx, timeout)
+	defer cancel()
+	stopParent := context.AfterFunc(parent, cancel)
+	defer stopParent()
+	if err := parent.Err(); err != nil {
 		return err
-	case <-parent.Done():
-		return parent.Err()
-	case <-time.After(timeout):
-		return fmt.Errorf("timeout after %s", timeout)
 	}
+	err := fn(ctx)
+	if parent.Err() != nil {
+		return parent.Err()
+	}
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return err
 }
 
 func cancelRemoteTarget(_ context.Context, cancel context.CancelFunc) context.CancelFunc {

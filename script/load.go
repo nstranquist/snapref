@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -64,13 +65,20 @@ func SourceForPath(path string) string {
 }
 
 // LoadJSON decodes a JSON playbook into a Plan, rejecting unknown fields so
-// typos surface immediately.
+// typos surface immediately. A file must contain exactly one JSON value.
 func LoadJSON(b []byte) (Plan, error) {
 	var p Plan
 	dec := json.NewDecoder(bytes.NewReader(b))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&p); err != nil {
 		return Plan{}, fmt.Errorf("parse playbook: %w", err)
+	}
+	var extra json.RawMessage
+	if err := dec.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return Plan{}, fmt.Errorf("parse playbook: expected one JSON value")
+		}
+		return Plan{}, fmt.Errorf("parse playbook trailing data: %w", err)
 	}
 	return p, nil
 }
@@ -80,8 +88,16 @@ func LoadJSON(b []byte) (Plan, error) {
 // and JSON playbooks therefore have identical field names and semantics.
 func LoadYAML(b []byte) (Plan, error) {
 	var raw any
-	if err := yaml.Unmarshal(b, &raw); err != nil {
+	dec := yaml.NewDecoder(bytes.NewReader(b))
+	if err := dec.Decode(&raw); err != nil {
 		return Plan{}, fmt.Errorf("parse playbook yaml: %w", err)
+	}
+	var extra any
+	if err := dec.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return Plan{}, fmt.Errorf("parse playbook yaml: expected one document")
+		}
+		return Plan{}, fmt.Errorf("parse playbook yaml trailing data: %w", err)
 	}
 	jb, err := json.Marshal(normalizeYAML(raw))
 	if err != nil {

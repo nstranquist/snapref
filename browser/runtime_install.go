@@ -115,6 +115,12 @@ func InstallRuntime(ctx context.Context, opts RuntimeInstallOptions) (RuntimeIns
 }
 
 func installRuntime(ctx context.Context, opts RuntimeInstallOptions, source runtimeDownloadSource) (RuntimeInstallResult, error) {
+	return installRuntimeForPlatform(ctx, opts, source, runtimePlatform)
+}
+
+// installRuntimeForPlatform lets archive fixtures test the complete installer
+// without requiring a published browser artifact for the test host.
+func installRuntimeForPlatform(ctx context.Context, opts RuntimeInstallOptions, source runtimeDownloadSource, platformForInstall func() (string, error)) (RuntimeInstallResult, error) {
 	if opts.Kind != RuntimeHeadlessShell && opts.Kind != RuntimeChromeForTesting {
 		return RuntimeInstallResult{}, fmt.Errorf("runtime install requires headless-shell or chrome-for-testing, got %q", opts.Kind)
 	}
@@ -124,7 +130,7 @@ func installRuntime(ctx context.Context, opts RuntimeInstallOptions, source runt
 	if opts.Channel != "" && opts.Channel != "stable" {
 		return RuntimeInstallResult{}, fmt.Errorf("unsupported runtime channel %q (want stable)", opts.Channel)
 	}
-	platform, err := runtimePlatform()
+	platform, err := platformForInstall()
 	if err != nil {
 		return RuntimeInstallResult{}, err
 	}

@@ -33,12 +33,15 @@ func dialFirstPage(ctx context.Context, s *Session) (interface {
 	cdpTransport
 	Close() error
 }, error) {
-	wsURL, ok := firstPageWebSocketURL(s.Port)
+	wsURL, ok := firstPageWebSocketURLContext(ctx, s.Port)
 	if !ok {
 		if _, ensured := ensurePageTargetID(ctx, s.Port); ensured {
 			wsURL, ok = waitForPageWebSocketURL(ctx, s.Port, time.Second)
 		}
 		if !ok {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 			return nil, errors.New("no page target on session — open or navigate first")
 		}
 	}
@@ -156,8 +159,11 @@ func rawEvalIntoTarget(ctx context.Context, s *Session, targetType, targetURLPre
 	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	entries, ok := fetchTargetList(s.Port)
+	entries, ok := fetchTargetListContext(cctx, s.Port)
 	if !ok {
+		if err := cctx.Err(); err != nil {
+			return err
+		}
 		return fmt.Errorf("list CDP targets on port %d", s.Port)
 	}
 	wsURL := ""
@@ -166,6 +172,9 @@ func rawEvalIntoTarget(ctx context.Context, s *Session, targetType, targetURLPre
 			continue
 		}
 		if strings.HasPrefix(entry.URL, targetURLPrefix) && entry.WebSocketDebuggerURL != "" {
+			if err := validateCDPWebSocketURL(entry.WebSocketDebuggerURL, s.Port, "/devtools/"); err != nil {
+				return fmt.Errorf("invalid target websocket: %w", err)
+			}
 			wsURL = entry.WebSocketDebuggerURL
 			break
 		}

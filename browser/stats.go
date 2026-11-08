@@ -68,12 +68,14 @@ type BrowserStats struct {
 	// step that ran and found a page defect (console --fail-on-error tripping,
 	// script assert_* failing). The tool worked, so they count in NonOK but not
 	// in ErrorRatePct.
-	AssertionFailures int           `json:"assertion_failures"`
-	ErrorRatePct      float64       `json:"error_rate_pct"` // (NonOK - AssertionFailures) / TotalEvents
-	Verbs             []VerbStat    `json:"verbs"`
-	Snapshots         SnapshotStats `json:"snapshots"`
-	Adoption          AdoptionStats `json:"adoption"`
-	Findings          FindingsStats `json:"findings"`
+	FailuresByClass      map[ErrorClass]int `json:"failures_by_class,omitempty"`
+	UnclassifiedFailures int                `json:"unclassified_failures,omitempty"`
+	AssertionFailures    int                `json:"assertion_failures"`
+	ErrorRatePct         float64            `json:"error_rate_pct"` // (NonOK - AssertionFailures) / TotalEvents
+	Verbs                []VerbStat         `json:"verbs"`
+	Snapshots            SnapshotStats      `json:"snapshots"`
+	Adoption             AdoptionStats      `json:"adoption"`
+	Findings             FindingsStats      `json:"findings"`
 }
 
 // StatsOptions narrows the scan.
@@ -134,40 +136,52 @@ func ReadStats(opts StatsOptions) (*BrowserStats, error) {
 	sessions := map[string]bool{}
 
 	// events.jsonl — the mechanical trace.
-	if path, err := CommandEventLogPath(); err == nil {
-		_ = forEachJSONLFamilyLine(path, func(line []byte) error {
-			var ev ObserverEvent
-			if json.Unmarshal(line, &ev) != nil {
-				return nil
-			}
-			if !cutoff.IsZero() && !ev.Timestamp.IsZero() && ev.Timestamp.Before(cutoff) {
-				return nil
-			}
-			if opts.Session != "" && ev.Session != opts.Session {
-				return nil
-			}
-			if ev.Command == nil || ev.Command.Command == "" {
-				return nil
-			}
-			if isSyntheticFixtureEvent(ev) {
-				st.ExcludedSynthetic++
-				return nil
-			}
-			st.TotalEvents++
-			if ev.Session != "" {
-				sessions[ev.Session] = true
-			}
-			verb := ev.Command.Command
-			verbCounts[verb]++
-			if !ev.Command.OK {
-				verbNonOK[verb]++
-				st.NonOK++
-				if ev.Command.ErrorClass == ErrorClassAssertion {
-					st.AssertionFailures++
-				}
-			}
+	path, err := CommandEventLogPath()
+	if err != nil {
+		return nil, fmt.Errorf("command event stats: %w", err)
+	}
+	if err := forEachJSONLFamilyLine(path, func(line []byte) error {
+		var ev ObserverEvent
+		if json.Unmarshal(line, &ev) != nil {
 			return nil
-		})
+		}
+		if !cutoff.IsZero() && !ev.Timestamp.IsZero() && ev.Timestamp.Before(cutoff) {
+			return nil
+		}
+		if opts.Session != "" && ev.Session != opts.Session {
+			return nil
+		}
+		if ev.Command == nil || ev.Command.Command == "" {
+			return nil
+		}
+		if isSyntheticFixtureEvent(ev) {
+			st.ExcludedSynthetic++
+			return nil
+		}
+		st.TotalEvents++
+		if ev.Session != "" {
+			sessions[ev.Session] = true
+		}
+		verb := ev.Command.Command
+		verbCounts[verb]++
+		if !ev.Command.OK {
+			verbNonOK[verb]++
+			st.NonOK++
+			if ev.Command.ErrorClass == "" {
+				st.UnclassifiedFailures++
+			} else {
+				if st.FailuresByClass == nil {
+					st.FailuresByClass = map[ErrorClass]int{}
+				}
+				st.FailuresByClass[ev.Command.ErrorClass]++
+			}
+			if ev.Command.ErrorClass == ErrorClassAssertion {
+				st.AssertionFailures++
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("command event stats: %w", err)
 	}
 
 	for verb, n := range verbCounts {
@@ -191,10 +205,16 @@ func ReadStats(opts StatsOptions) (*BrowserStats, error) {
 	st.Adoption = computeAdoption(verbCounts)
 
 	// snapshot-events.jsonl — discovery sink.
-	st.Snapshots = readSnapshotStats(cutoff, opts.Session)
+	st.Snapshots, err = readSnapshotStats(cutoff, opts.Session)
+	if err != nil {
+		return nil, fmt.Errorf("snapshot stats: %w", err)
+	}
 
 	// findings.jsonl — agent-written outcomes.
-	st.Findings = readFindingsStats(opts)
+	st.Findings, err = readFindingsStats(opts)
+	if err != nil {
+		return nil, fmt.Errorf("findings stats: %w", err)
+	}
 
 	return st, nil
 }
@@ -291,14 +311,14 @@ func computeAdoption(counts map[string]int) AdoptionStats {
 	return a
 }
 
-func readSnapshotStats(cutoff time.Time, session string) SnapshotStats {
+func readSnapshotStats(cutoff time.Time, session string) (SnapshotStats, error) {
 	out := SnapshotStats{}
 	path, err := SnapshotEventLogPath()
 	if err != nil {
-		return out
+		return out, err
 	}
 	var sumMatched, sumDur float64
-	_ = forEachJSONLFamilyLine(path, func(line []byte) error {
+	err = forEachJSONLFamilyLine(path, func(line []byte) error {
 		var ev SnapshotEvent
 		if json.Unmarshal(line, &ev) != nil {
 			return nil
@@ -317,18 +337,21 @@ func readSnapshotStats(cutoff time.Time, session string) SnapshotStats {
 		sumDur += float64(ev.DurationMS)
 		return nil
 	})
+	if err != nil {
+		return out, err
+	}
 	if out.Count > 0 {
 		out.AvgMatched = round1(sumMatched / float64(out.Count))
 		out.AvgDurationMS = round1(sumDur / float64(out.Count))
 	}
-	return out
+	return out, err
 }
 
-func readFindingsStats(opts StatsOptions) FindingsStats {
+func readFindingsStats(opts StatsOptions) (FindingsStats, error) {
 	recs, err := ReadFindings(FindingsFilter{Session: opts.Session, Since: opts.Since})
 	out := FindingsStats{BySeverity: map[string]int{}, ByCategory: map[string]int{}}
 	if err != nil {
-		return out
+		return out, err
 	}
 	for _, r := range recs {
 		out.Total++
@@ -348,7 +371,7 @@ func readFindingsStats(opts StatsOptions) FindingsStats {
 	if len(out.ByCategory) == 0 {
 		out.ByCategory = nil
 	}
-	return out
+	return out, err
 }
 
 func round1(f float64) float64 {

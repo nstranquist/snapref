@@ -2,6 +2,7 @@ package browsermcp
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -96,11 +97,7 @@ func Serve(in io.Reader, out io.Writer, opts Options) error {
 		if len(line) == 0 {
 			continue
 		}
-		var req rpcRequest
-		if err := json.Unmarshal(line, &req); err != nil {
-			continue // ignore malformed frames
-		}
-		resp, respond := s.handleRPC(req)
+		resp, respond := s.handleFrame(line)
 		if respond {
 			if err := enc.Encode(resp); err != nil {
 				return err
@@ -108,6 +105,46 @@ func Serve(in io.Reader, out io.Writer, opts Options) error {
 		}
 	}
 	return scanner.Err()
+}
+
+// handleFrame keeps protocol errors observable without dispatching invalid input.
+func (s *server) handleFrame(line []byte) (rpcResponse, bool) {
+	failure := func(code int, message string) (rpcResponse, bool) {
+		return rpcResponse{JSONRPC: "2.0", ID: json.RawMessage("null"), Error: &rpcError{Code: code, Message: message}}, true
+	}
+	if !json.Valid(line) {
+		return failure(-32700, "Parse error")
+	}
+	var req rpcRequest
+	if err := json.Unmarshal(line, &req); err != nil || req.JSONRPC != "2.0" {
+		return failure(-32600, "Invalid Request")
+	}
+	var method struct {
+		Method *string `json:"method"`
+	}
+	if err := json.Unmarshal(line, &method); err != nil || method.Method == nil {
+		return failure(-32600, "Invalid Request")
+	}
+	if len(req.ID) > 0 {
+		var id any
+		dec := json.NewDecoder(bytes.NewReader(req.ID))
+		dec.UseNumber()
+		if err := dec.Decode(&id); err != nil {
+			return failure(-32600, "Invalid Request")
+		}
+		switch id.(type) {
+		case nil, string, json.Number:
+		default:
+			return failure(-32600, "Invalid Request")
+		}
+	}
+	if len(req.Params) > 0 && req.Params[0] != '{' && req.Params[0] != '[' {
+		if len(req.ID) == 0 {
+			return rpcResponse{}, false
+		}
+		return rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32602, Message: "Invalid params"}}, true
+	}
+	return s.handleRPC(req)
 }
 
 func (s *server) handleRPC(req rpcRequest) (rpcResponse, bool) {
@@ -794,7 +831,7 @@ func (s *server) audit(tool, session string, allowed, ok bool, detail string) {
 		"session": session, "allowed": allowed, "ok": ok,
 	}
 	if detail != "" {
-		rec["detail"] = detail
+		rec["detail"] = auditDetail(tool, allowed, ok, detail)
 	}
 	b, _ := json.Marshal(rec)
 	_, _ = s.opts.Audit.Write(append(b, '\n'))
