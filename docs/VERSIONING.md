@@ -27,6 +27,14 @@ Machine-readable events and manifests carry their own integer
 field, changing its meaning/type, or changing an enum incompatibly requires a
 new schema version. Old readers remain supported for at least one minor release.
 
+Current observer events, script run reports, and script steps use schema version
+3. The version 3 observer command adds bounded `reason_code`, `cohort`, and
+`run_kind` fields. Stateless commands use the `stateless-v1` cohort and have
+separate health totals; they do not change the historical stateful denominator.
+`negative-probe` identifies deliberate failure checks and does not remove them
+from their cohort. Version 2 schemas remain in release archives so consumers can
+validate historical records without rewriting them.
+
 Executable snapshot refs are ephemeral capabilities, not durable IDs. Their
 text format can gain a new prefix only in a minor release. Previously issued
 refs are valid only for the latest inventory and live fingerprint by design.

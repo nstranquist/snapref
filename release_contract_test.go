@@ -2,6 +2,9 @@ package snapref_test
 
 import (
 	"encoding/json"
+	"fmt"
+	"reflect"
+
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +12,9 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/nstranquist/snapref/browser"
+	script "github.com/nstranquist/snapref/script"
 )
 
 func TestReleaseVersionSurfacesMatchSemanticVersioning(t *testing.T) {
@@ -47,8 +53,8 @@ func TestReleaseVersionSurfacesMatchSemanticVersioning(t *testing.T) {
 	}
 }
 
-func TestReleaseSchemasAreJSONSchemaV2Contracts(t *testing.T) {
-	for _, name := range []string{"telemetry-v2.schema.json", "script-run-v2.schema.json"} {
+func TestReleaseSchemasRetainVersionedContracts(t *testing.T) {
+	for _, name := range []string{"telemetry-v2.schema.json", "script-run-v2.schema.json", "telemetry-v3.schema.json", "script-run-v3.schema.json"} {
 		body, err := os.ReadFile(filepath.Join("schemas", name))
 		if err != nil {
 			t.Fatal(err)
@@ -69,8 +75,104 @@ func TestReleaseSchemasAreJSONSchemaV2Contracts(t *testing.T) {
 			t.Fatalf("%s schema_version property has type %T, want object", name, schema.Props["schema_version"])
 		}
 		version, ok := versionProperty["const"].(float64)
-		if !ok || version != 2 {
-			t.Fatalf("%s schema_version const = %v, want 2", name, version)
+		want := 2
+		if strings.Contains(name, "-v3.") {
+			want = 3
+		}
+		if !ok || version != float64(want) {
+			t.Fatalf("%s schema_version const = %v, want %d", name, version, want)
+		}
+	}
+}
+
+// Check the actual producer types, rather than only checking that old schemas
+// remain valid JSON. A producer version or field change must update its schema.
+func TestReleaseCurrentSchemasMatchProducer(t *testing.T) {
+	type node struct {
+		Const int                        `json:"const"`
+		Props map[string]json.RawMessage `json:"properties"`
+		Defs  map[string]json.RawMessage `json:"$defs"`
+	}
+	load := func(base string) node {
+		t.Helper()
+		name := fmt.Sprintf("schemas/%s-v%d.schema.json", base, browser.BrowserTelemetrySchemaVersion)
+		body, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var n node
+		if err := json.Unmarshal(body, &n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	check := func(n node, producer any, versioned bool) {
+		t.Helper()
+		typ := reflect.TypeOf(producer)
+		for i := 0; i < typ.NumField(); i++ {
+			key := strings.Split(typ.Field(i).Tag.Get("json"), ",")[0]
+			if key == "" || key == "-" {
+				continue
+			}
+			if _, ok := n.Props[key]; !ok {
+				t.Errorf("schema omits %s.%s (%s)", typ.Name(), typ.Field(i).Name, key)
+			}
+		}
+		if versioned {
+			var v node
+			if err := json.Unmarshal(n.Props["schema_version"], &v); err != nil {
+				t.Fatal(err)
+			}
+			if v.Const != browser.BrowserTelemetrySchemaVersion {
+				t.Errorf("%s version = %d, producer = %d", typ.Name(), v.Const, browser.BrowserTelemetrySchemaVersion)
+			}
+		}
+	}
+	decode := func(raw json.RawMessage) node {
+		t.Helper()
+		var n node
+		if err := json.Unmarshal(raw, &n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	observer := load("telemetry")
+	check(observer, browser.ObserverEvent{}, true)
+	command := decode(observer.Defs["command"])
+	check(command, browser.ObserverCommand{}, false)
+	for field, value := range map[string]string{"cohort": browser.StatelessTelemetryCohort, "run_kind": "negative-probe"} {
+		var property struct {
+			Enum []string `json:"enum"`
+		}
+		if err := json.Unmarshal(command.Props[field], &property); err != nil {
+			t.Fatal(err)
+		}
+		if len(property.Enum) != 1 || property.Enum[0] != value {
+			t.Errorf("%s contract = %v, want %q", field, property.Enum, value)
+		}
+	}
+	report := load("script-run")
+	check(report, script.RunReport{}, true)
+	check(decode(report.Defs["step"]), script.Result{}, true)
+	// Every safe reason emitted by the engine must be admitted by the contract.
+	var reasons struct {
+		Enum []string `json:"enum"`
+	}
+	if err := json.Unmarshal(command.Props["reason_code"], &reasons); err != nil {
+		t.Fatal(err)
+	}
+	allowed := map[string]bool{}
+	for _, reason := range reasons.Enum {
+		allowed[reason] = true
+	}
+	for _, class := range []browser.ErrorClass{browser.ErrorClassUsage, browser.ErrorClassPolicy, browser.ErrorClassAssertion, browser.ErrorClassSelector, browser.ErrorClassTransport, browser.ErrorClassTimeout, browser.ErrorClassProduct, browser.ErrorClassInternal} {
+		if reason := browser.ErrorClassReason(class); !allowed[reason] {
+			t.Errorf("schema omits emitted reason %q", reason)
+		}
+	}
+	for _, reason := range []string{browser.ErrorReason(&browser.JavaScriptEvalError{Cause: fmt.Errorf("page text")}), browser.ErrorReason(&browser.SelectOptionError{Cause: fmt.Errorf("page text")}), "host_admission_denied"} {
+		if !allowed[reason] {
+			t.Errorf("schema omits typed reason %q", reason)
 		}
 	}
 }

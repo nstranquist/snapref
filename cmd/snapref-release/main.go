@@ -42,6 +42,8 @@ var releaseFiles = []string{
 	"docs/VERSIONING.md",
 	"schemas/script-run-v2.schema.json",
 	"schemas/telemetry-v2.schema.json",
+	"schemas/script-run-v3.schema.json",
+	"schemas/telemetry-v3.schema.json",
 	"third_party/licenses/go/LICENSE",
 	"third_party/licenses/go/PATENTS",
 	"third_party/licenses/github.com/chromedp/cdproto/LICENSE",

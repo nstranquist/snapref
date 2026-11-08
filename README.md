@@ -177,8 +177,9 @@ repository's required `0644` mode; other platforms fail on permission drift.
 A digest mismatch means the checked-out tree drifted from the reviewed source
 lock and must be resynchronized before a release.
 
-The versioned public artifact contracts live in `schemas/telemetry-v2.schema.json`
-and `schemas/script-run-v2.schema.json`. Each release archive includes both
+The versioned public artifact contracts live in `schemas/telemetry-v3.schema.json`
+and `schemas/script-run-v3.schema.json`. Version 2 schemas remain available for
+historical records. Each release archive includes all four
 schemas and `docs/VERSIONING.md`.
 
 ## Architecture

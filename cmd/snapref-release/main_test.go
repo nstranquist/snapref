@@ -72,6 +72,18 @@ func TestReleaseFilesIncludeRequiredAttribution(t *testing.T) {
 	}
 }
 
+func TestReleaseArchivesIncludeCurrentAndHistoricalSchemas(t *testing.T) {
+	included := map[string]bool{}
+	for _, name := range releaseFiles {
+		included[name] = true
+	}
+	for _, name := range []string{"schemas/telemetry-v2.schema.json", "schemas/script-run-v2.schema.json", "schemas/telemetry-v3.schema.json", "schemas/script-run-v3.schema.json"} {
+		if !included[name] {
+			t.Errorf("release archive omits schema %s", name)
+		}
+	}
+}
+
 func TestReleaseArtifactsRejectProtectedOutputPaths(t *testing.T) {
 	root := releaseFixture(t)
 	marker := filepath.Join(root, "source-marker")

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:snapref:schema:telemetry:v3",
+  "title": "SnapRef observer event v3",
+  "type": "object",
+  "required": ["schema_version", "build_version", "timestamp", "kind"],
+  "properties": {
+    "schema_version": {"const": 3},
+    "build_version": {"type": "string", "minLength": 1},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "kind": {"enum": ["browser.command", "browser.script", "browser.step"]},
+    "session": {"type": "string"},
+    "status": {"type": "object"},
+    "target": {"type": "object"},
+    "command": {"$ref": "#/$defs/command"},
+    "error": {"type": "string"},
+    "error_class": {"$ref": "#/$defs/error_class"}
+  },
+  "$defs": {
+    "error_class": {
+      "enum": ["usage", "policy", "assertion", "selector", "transport", "timeout", "product", "internal"]
+    },
+    "command": {
+      "type": "object",
+      "required": ["command", "exit_code", "ok", "duration_ms"],
+      "properties": {
+        "command": {"type": "string", "minLength": 1},
+        "operation": {"type": "string"},
+        "cohort": {"enum": ["stateless-v1"]},
+        "run_kind": {"enum": ["negative-probe"]},
+        "reason_code": {"enum": ["javascript_exception", "select_option_failed", "host_admission_denied", "invalid_input", "policy_denied", "gate_not_satisfied", "selector_failed", "transport_failed", "deadline_exceeded", "product_failed", "command_failure"]},
+        "error_class": {"$ref": "#/$defs/error_class"},
+        "exit_code": {"type": "integer"},
+        "ok": {"type": "boolean"},
+        "duration_ms": {"type": "integer", "minimum": 0},
+        "data": {"type": "object"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
