@@ -29,6 +29,9 @@ func dialFirstPage(ctx context.Context, s *Session) (interface {
 	cdpTransport
 	Close() error
 }, error) {
+	if err := checkSessionForegroundPolicy(s); err != nil {
+		return nil, err
+	}
 	wsURL, ok := firstPageWebSocketURLContext(ctx, s.Port)
 	if !ok {
 		if _, ensured := ensurePageTargetID(ctx, s.Port); ensured {
@@ -147,6 +150,9 @@ func rawEvalInto(ctx context.Context, s *Session, url, js string, await bool, ou
 // URL prefix through its own websocket. Releasing this connection preserves
 // extension pages and service workers across multiple acceptance steps.
 func rawEvalIntoTarget(ctx context.Context, s *Session, targetType, targetURLPrefix, js string, await bool, out any, timeout time.Duration) error {
+	if err := checkSessionForegroundPolicy(s); err != nil {
+		return err
+	}
 	if timeout == 0 {
 		timeout = 30 * time.Second
 	}

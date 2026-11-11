@@ -5,6 +5,15 @@ generated, revision-bound source pin; engine changes start here. A local
 development build is distinct from the published release even when its SemVer
 is the same: `snapref version --json` reports source digest and build kind.
 
+Hosts can enforce background browser work with a
+`~/.config/snapref/headless-only` marker, covering every session root. A marker in
+the session root (`SNAPREF_HOME`, otherwise `~/.snapref/browser`) also applies.
+The marker rejects
+headed launches and connections to existing headed sessions, including offscreen
+headed windows. CLI and MCP share this policy. Listing and closing sessions remain
+available. Current-page screenshots never activate a tab or foreground a window.
+Use full Chrome for Testing in headless mode when rendering fidelity matters.
+
 MCP navigation grants use `SNAPREF_MCP_ALLOW_HOSTS` for hosts and their subdomains,
 or `SNAPREF_MCP_EXACT_ORIGINS` for exact HTTP(S) scheme, host and effective port.
 Comma-separated grants combine by intersection when both policies are set.

@@ -376,6 +376,9 @@ func headlessShellAccepted(platform string, selections RuntimeSelections) bool {
 // ResolveRuntime resolves one launch without host-browser search or network
 // activity. An explicit path or environment override is the only external path.
 func ResolveRuntime(request RuntimeRequest) (ResolvedRuntime, error) {
+	if err := CheckForegroundPolicy(request.Headful); err != nil {
+		return ResolvedRuntime{}, err
+	}
 	kind := request.Kind
 	if kind == "" {
 		kind = RuntimeAuto

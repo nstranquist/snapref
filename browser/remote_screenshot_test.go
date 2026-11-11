@@ -12,7 +12,39 @@ import (
 	"time"
 
 	"github.com/chromedp/cdproto"
+	"github.com/go-json-experiment/json/jsontext"
 )
+
+type backgroundScreenshotTransport struct {
+	message *cdproto.Message
+	methods []string
+}
+
+func (t *backgroundScreenshotTransport) Write(_ context.Context, m *cdproto.Message) error {
+	t.message = m
+	t.methods = append(t.methods, string(m.Method))
+	return nil
+}
+func (t *backgroundScreenshotTransport) Read(_ context.Context, m *cdproto.Message) error {
+	m.ID = t.message.ID
+	m.Result = jsontext.Value(`{}`)
+	if string(t.message.Method) == "Page.captureScreenshot" {
+		m.Result = jsontext.Value(`{"data":"cG5n"}`)
+	}
+	return nil
+}
+func TestScreenshotNeverActivatesTarget(t *testing.T) {
+	transport := &backgroundScreenshotTransport{}
+	png, err := captureCurrentScreenshot(context.Background(), transport, false)
+	if err != nil || string(png) != "png" {
+		t.Fatalf("capture = %q, %v", png, err)
+	}
+	for _, method := range transport.methods {
+		if method == "Page.bringToFront" || method == "Target.activateTarget" {
+			t.Fatalf("foreground method: %s", method)
+		}
+	}
+}
 
 type blockingScreenshotTransport struct {
 	closed chan struct{}

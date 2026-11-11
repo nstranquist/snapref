@@ -45,6 +45,9 @@ type OpenOptions struct {
 //     the websocket debugger URL + browser version.
 //  5. Persist the session file atomically.
 func Open(o OpenOptions) (*Session, error) {
+	if err := CheckForegroundPolicy(o.Headful); err != nil {
+		return nil, err
+	}
 	if err := ValidateSessionName(o.Name); err != nil {
 		return nil, err
 	}

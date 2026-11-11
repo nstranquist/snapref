@@ -28,6 +28,9 @@ import (
 // remoteCtx owns a CDP connection, but does not own the persistent page.
 // Both returned cancellation functions release the connection and are idempotent.
 func remoteCtx(parent context.Context, s *Session) (context.Context, context.CancelFunc, context.CancelFunc, error) {
+	if err := checkSessionForegroundPolicy(s); err != nil {
+		return nil, nil, nil, err
+	}
 	if s == nil || s.WSURL == "" {
 		return nil, nil, nil, errors.New("session has no recorded ws_url; reopen it")
 	}
@@ -850,6 +853,9 @@ const screenshotPresentedFrameJS = `new Promise(resolve => {
 // Page.captureScreenshot waiting indefinitely; on timeout we close the raw
 // transport asynchronously and return control to the caller.
 func RemoteScreenshotCurrentWithTimeout(s *Session, captureBeyondViewport bool, timeout time.Duration) ([]byte, error) {
+	if err := checkSessionForegroundPolicy(s); err != nil {
+		return nil, err
+	}
 	if timeout == 0 {
 		timeout = 60 * time.Second
 	}
@@ -875,7 +881,7 @@ type screenshotResult struct {
 // screenshotCurrentOnTransportWithTimeout bounds the whole CDP sequence, not
 // only Page.captureScreenshot. A websocket read can remain blocked after its
 // context expires, so the timeout path closes the transport to unblock any
-// bring-to-front, frame, metrics, or capture call in progress.
+// frame, metrics, or capture call in progress.
 func screenshotCurrentOnTransportWithTimeout(
 	ctx context.Context,
 	conn interface {
@@ -914,12 +920,8 @@ func captureCurrentScreenshot(ctx context.Context, conn cdpTransport, captureBey
 	var id int64
 	next := func() int64 { id++; return id }
 
-	// Activate the target and force a fresh composited frame before capturing.
-	// fromSurface captures the last *presented* compositor surface, which on an
-	// idle headless tab can predate JS-mutated DOM (a menu opened after load) —
-	// the classic "black/stale screenshot". bringToFront + two rAFs guarantee the
-	// renderer presents the current DOM. Errors are non-fatal (best effort).
-	_, _ = cdpCall(ctx, conn, next(), "Page.bringToFront", nil)
+	// Give DOM mutations a compositing opportunity without activating a tab or
+	// an OS window. The bounded two-rAF wait also tolerates throttled pages.
 	_, _ = cdpCall(ctx, conn, next(), "Runtime.evaluate", map[string]any{
 		"expression":   screenshotPresentedFrameJS,
 		"awaitPromise": true,
@@ -928,8 +930,8 @@ func captureCurrentScreenshot(ctx context.Context, conn cdpTransport, captureBey
 	// Both capture modes use explicit CSS-pixel clips when layout metrics are
 	// available. This avoids device-scale-factor drift for viewport evidence and
 	// makes full-page capture include the entire content height. Chrome ignores
-	// captureBeyondViewport with fromSurface:false in some builds; bringToFront +
-	// two rAFs above keep the compositor surface fresh. The live-renderer fallback
+	// captureBeyondViewport with fromSurface:false in some builds; the
+	// two-rAF wait above gives the compositor a fresh frame. The live-renderer fallback
 	// remains for older/failed metrics calls.
 	params := screenshotCaptureParams(captureBeyondViewport, nil, nil)
 	if metricsRaw, metricsErr := cdpCall(ctx, conn, next(), "Page.getLayoutMetrics", nil); metricsErr == nil {
