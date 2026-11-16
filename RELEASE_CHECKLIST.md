@@ -1,7 +1,8 @@
 # Release checklist
 
 Public source is at https://github.com/nstranquist/snapref. The current
-tag is `v0.2.0-rc.2`. Complete the remaining items before a signed 1.0.
+tag is `v0.2.0` (prepared 2026-11-16; tag and push wait for the
+Wave A G5-A approval). Complete the remaining items before a signed 1.0.
 
 - [x] Clear the public name and module path with the repository owner. Public name is SnapRef; module path is `github.com/nstranquist/snapref`.
 - [x] Run `make verify-release` from a clean standalone checkout.
@@ -17,7 +18,7 @@ tag is `v0.2.0-rc.2`. Complete the remaining items before a signed 1.0.
 - [x] Review `NOTICE`, `THIRD_PARTY_NOTICES.md`, every bundled license text,
   and the managed-browser terms.
 - [x] Confirm that `VERSION`, `package.json`, the CLI version, the intended tag,
-  and `CHANGELOG.md` agree (`0.2.0-rc.2` / tag `v0.2.0-rc.2`).
+  and `CHANGELOG.md` agree (`0.2.0` / tag `v0.2.0`).
 - [x] Verify every entry in `SHA256SUMS` against the final archives.
 - [x] Keep Nicos adapters and control-plane code outside this repository.
 - [x] Obtain explicit approval before you create a remote, push, tag, or

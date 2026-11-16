@@ -31,11 +31,11 @@ isolated sessions, interactive snapshots with revision-bound executable refs,
 typed actuation/assertion, scripts, policy-gated MCP, telemetry receipts, and
 cross-platform lifecycle gates.
 
-Tagged `v0.2.0-rc.2` is the published unsigned prerelease. It includes
-`self-test`, `demo mcp-policy`, and `demo ref-integrity`.
+Tagged `v0.2.0` is the current unsigned release. It includes `self-test`,
+`demo mcp-policy`, `demo ref-integrity`, and persistent device emulation.
 
 ```sh
-go install github.com/nstranquist/snapref/cmd/snapref@v0.2.0-rc.2
+go install github.com/nstranquist/snapref/cmd/snapref@v0.2.0
 snapref runtime install --runtime chrome-for-testing --channel stable
 snapref runtime install --runtime headless-shell --channel stable
 snapref self-test
@@ -61,7 +61,7 @@ Chrome for Testing and runs `snapref self-test` plus
 
 In a source checkout, `make init` runs the same two runtime installs.
 
-Status: published unsigned prerelease `v0.2.0-rc.2` at
+Status: unsigned release `v0.2.0` at
 https://github.com/nstranquist/snapref. Wedge `demo` receipts ship in that
 tag. Windows support is not advertised until a
 physical Windows+Chrome gate passes.

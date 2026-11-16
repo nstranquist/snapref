@@ -91,7 +91,7 @@ func fixtureServer() *httptest.Server {
 }
 
 func benchmarkSnapRef(ctx context.Context, rawURL string) providerResult {
-	result := providerResult{Provider: "SnapRef", Version: "0.2.0-rc.2"}
+	result := providerResult{Provider: "SnapRef", Version: "0.2.0"}
 	home, err := os.MkdirTemp("", "snapref-benchmark-*")
 	if err != nil {
 		result.Error = err.Error()

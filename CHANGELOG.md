@@ -5,6 +5,8 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ## Unreleased
 
+## 0.2.0 - 2026-11-16
+
 ### Fixed
 
 - Telemetry identifies reproducible builds by embedded source revision or digest
@@ -15,6 +17,18 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ### Added
 
+- Persistent sessions keep a device emulation override (`DeviceEmulation`:
+  width, height, device scale factor, mobile, touch). Chrome drops
+  `Emulation.*` overrides when the DevTools connection that set them closes,
+  so the session record stores the override and every new connection
+  re-applies it. `SetSessionEmulation` and `RemoteSetDeviceEmulation` set or
+  clear it; `RemoteSetViewport` records a desktop override the same way.
+- `RemoteScreenshotCurrentWithOptions` and
+  `RemoteSaveScreenshotCurrentWithOptions` capture the current page with a
+  one-shot emulation, an optional same-connection navigation and an optional
+  visible-selector wait. The page then returns to the persisted emulation.
+- Headless launches pass `--hide-scrollbars`, so captures use the full
+  emulated width.
 - Console capture kind `csp` returns typed Content-Security-Policy issues from
   the CDP Audits domain: directive, violation type, blocked URL, report-only
   flag, and source location. Report-only violations count, so a Report-Only
