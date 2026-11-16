@@ -35,6 +35,9 @@ type Session struct {
 	RuntimeManaged   bool                `json:"runtime_managed,omitempty"`
 	RuntimeManifest  string              `json:"runtime_manifest_digest,omitempty"`
 	RuntimeCaps      RuntimeCapabilities `json:"runtime_capabilities,omitempty"`
+	// Emulation is the persisted page-level device override; every CDP
+	// connection re-applies it (see DeviceEmulation).
+	Emulation *DeviceEmulation `json:"device_emulation,omitempty"`
 }
 
 // LifecyclePolicy makes the owner-selected lifetime of a saved session

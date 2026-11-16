@@ -237,6 +237,9 @@ func chromeLaunchArgs(o OpenOptions, runtimeKind RuntimeKind, profileDir string)
 		if runtimeKind != RuntimeHeadlessShell {
 			args = append(args, "--headless=new")
 		}
+		// Captures and layout use the full emulated width, as with overlay
+		// scrollbars on macOS and the stateless chromedp path.
+		args = append(args, "--hide-scrollbars")
 	}
 	if o.ExtensionPath != "" {
 		args = append(args,

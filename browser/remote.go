@@ -69,6 +69,14 @@ func remoteCtx(parent context.Context, s *Session) (context.Context, context.Can
 		closeConnection()
 		return nil, nil, nil, fmt.Errorf("attach persistent page: %w", err)
 	}
+	// Device emulation belongs to the DevTools session; re-apply the
+	// persisted override on this new attachment (see DeviceEmulation).
+	if s.Emulation != nil {
+		if err := chromedp.Run(taskCtx, emulationActions(s.Emulation)); err != nil {
+			closeConnection()
+			return nil, nil, nil, fmt.Errorf("re-apply session viewport %s: %w", s.Emulation, err)
+		}
+	}
 	return taskCtx, closeConnection, closeConnection, nil
 }
 
@@ -632,14 +640,13 @@ func RemoteNavigate(ctx context.Context, s *Session, url string, timeout time.Du
 	return rawNavigate(ctx, s, url, timeout, opts...)
 }
 
-// RemoteSetViewport applies a viewport override to the persistent session's
-// current page. It does not resize the OS-level Chrome window; it controls the
-// page metrics used by layout and screenshots.
+// RemoteSetViewport applies a desktop viewport override (DPR 1, no touch) to
+// the persistent session and records it, so later navigations and screenshots
+// keep the size. It does not resize the OS-level Chrome window; it controls
+// the page metrics used by layout and screenshots. Use
+// RemoteSetDeviceEmulation for mobile emulation or to clear the override.
 func RemoteSetViewport(ctx context.Context, s *Session, vp Viewport, timeout time.Duration) error {
-	if timeout == 0 {
-		timeout = 30 * time.Second
-	}
-	return rawSetViewport(ctx, s, vp, timeout)
+	return RemoteSetDeviceEmulation(ctx, s, &DeviceEmulation{Width: vp.Width, Height: vp.Height}, timeout)
 }
 
 // RemoteClick clicks a CSS selector in the session's first tab.
@@ -853,24 +860,83 @@ const screenshotPresentedFrameJS = `new Promise(resolve => {
 // Page.captureScreenshot waiting indefinitely; on timeout we close the raw
 // transport asynchronously and return control to the caller.
 func RemoteScreenshotCurrentWithTimeout(s *Session, captureBeyondViewport bool, timeout time.Duration) ([]byte, error) {
+	return RemoteScreenshotCurrentWithOptions(context.Background(), s, ScreenshotCurrentOptions{
+		CaptureBeyondViewport: captureBeyondViewport,
+		Timeout:               timeout,
+	})
+}
+
+// ScreenshotCurrentOptions controls a current-page capture.
+type ScreenshotCurrentOptions struct {
+	CaptureBeyondViewport bool
+	Timeout               time.Duration // 0 = 60s
+	// Emulation, when set, is a one-shot device override for this capture
+	// only. Afterwards the page returns to the session's persisted emulation,
+	// or to none.
+	Emulation *DeviceEmulation
+	// Navigate, when set, loads this URL first on the same connection, so the
+	// page loads under Emulation (JS that reads the width at load sees it).
+	Navigate string
+	// WaitSelector, when set, waits for a visible match on the same
+	// connection before capture (elements that only render at this size).
+	WaitSelector string
+}
+
+// RemoteScreenshotCurrentWithOptions captures the current page without
+// navigation. The session's persisted emulation applies unless
+// opts.Emulation overrides it for this capture.
+func RemoteScreenshotCurrentWithOptions(parent context.Context, s *Session, opts ScreenshotCurrentOptions) ([]byte, error) {
 	if err := checkSessionForegroundPolicy(s); err != nil {
 		return nil, err
 	}
+	timeout := opts.Timeout
 	if timeout == 0 {
 		timeout = 60 * time.Second
 	}
-	wsURL, ok := firstPageWebSocketURL(s.Port)
-	if !ok {
-		return nil, errors.New("no page target on session — open or navigate first")
+	if opts.Emulation != nil {
+		if err := opts.Emulation.Validate(); err != nil {
+			return nil, err
+		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 
-	conn, err := chromedp.DialContext(ctx, wsURL)
+	conn, err := dialFirstPage(ctx, s)
 	if err != nil {
-		return nil, fmt.Errorf("dial page websocket: %w", err)
+		return nil, err
 	}
-	return screenshotCurrentOnTransportWithTimeout(ctx, conn, captureBeyondViewport, timeout)
+	if opts.Emulation != nil {
+		if err := applyEmulationOnConn(ctx, conn, opts.Emulation); err != nil {
+			conn.Close()
+			return nil, fmt.Errorf("apply screenshot viewport %s: %w", opts.Emulation, err)
+		}
+	}
+	if opts.Navigate != "" {
+		var id int64
+		next := func() int64 { id++; return id }
+		if err := rawNavigateOnConn(ctx, conn, next, opts.Navigate, NavigateOptions{}, timeout); err != nil {
+			conn.Close()
+			return nil, s.restoreAfterOneShot(parent, opts.Emulation, err)
+		}
+	}
+	if opts.WaitSelector != "" {
+		if err := waitVisibleOnConn(ctx, conn, opts.WaitSelector); err != nil {
+			conn.Close()
+			return nil, s.restoreAfterOneShot(parent, opts.Emulation, err)
+		}
+	}
+	png, err := screenshotCurrentOnTransportWithTimeout(ctx, conn, opts.CaptureBeyondViewport, timeout)
+	if opts.Emulation != nil {
+		// The override ended with the connection, but layout keeps the
+		// one-shot size until the next resize. Restore it now.
+		restoreCtx, restoreCancel := context.WithTimeout(parent, 10*time.Second)
+		restoreErr := restoreSessionEmulation(restoreCtx, s, 10*time.Second)
+		restoreCancel()
+		if err == nil && restoreErr != nil {
+			return png, fmt.Errorf("restore session viewport after one-shot capture: %w", restoreErr)
+		}
+	}
+	return png, err
 }
 
 type screenshotResult struct {
@@ -1034,7 +1100,16 @@ func RemoteSaveScreenshotCurrentWithCapture(s *Session, path string, captureBeyo
 // RemoteSaveScreenshotCurrentWithCaptureTimeout is
 // RemoteSaveScreenshotCurrentWithCapture with caller-controlled timeout.
 func RemoteSaveScreenshotCurrentWithCaptureTimeout(s *Session, path string, captureBeyondViewport bool, timeout time.Duration) (string, error) {
-	png, err := RemoteScreenshotCurrentWithTimeout(s, captureBeyondViewport, timeout)
+	return RemoteSaveScreenshotCurrentWithOptions(context.Background(), s, path, ScreenshotCurrentOptions{
+		CaptureBeyondViewport: captureBeyondViewport,
+		Timeout:               timeout,
+	})
+}
+
+// RemoteSaveScreenshotCurrentWithOptions writes a current-page capture to path
+// (a temp file when empty) and returns the path.
+func RemoteSaveScreenshotCurrentWithOptions(ctx context.Context, s *Session, path string, opts ScreenshotCurrentOptions) (string, error) {
+	png, err := RemoteScreenshotCurrentWithOptions(ctx, s, opts)
 	if err != nil {
 		return "", err
 	}

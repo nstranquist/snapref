@@ -70,6 +70,24 @@ func TestChromeLaunchArgsHeadfulOffscreenIsExplicit(t *testing.T) {
 	}
 }
 
+// Headless captures must show the page at the full emulated width: with
+// classic 15 px scrollbars an 800 px viewport captured as 785 px and laid out
+// at 785 CSS px. Mac users see overlay scrollbars, and the stateless chromedp
+// path already hides them (chromedp.DefaultExecAllocatorOptions). Headful
+// windows are for humans and keep real scrollbars.
+func TestChromeLaunchArgsHideScrollbarsOnlyHeadless(t *testing.T) {
+	o := OpenOptions{Viewport: Viewport{Width: 800, Height: 600}}
+	for _, kind := range []RuntimeKind{RuntimeHeadlessShell, RuntimeChromeForTesting} {
+		if args := chromeLaunchArgs(o, kind, "/tmp/snapref-profile"); !slices.Contains(args, "--hide-scrollbars") {
+			t.Fatalf("%s headless launch missing --hide-scrollbars: %v", kind, args)
+		}
+	}
+	o.Headful = true
+	if args := chromeLaunchArgs(o, RuntimeChromeForTesting, "/tmp/snapref-profile"); slices.Contains(args, "--hide-scrollbars") {
+		t.Fatalf("headful launch hides scrollbars: %v", args)
+	}
+}
+
 func stringRepeat(s string, n int) string {
 	out := ""
 	for i := 0; i < n; i++ {

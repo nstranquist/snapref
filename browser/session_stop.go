@@ -6,7 +6,7 @@ import "context"
 // Unix-style SIGTERM equivalent, so this is its graceful lifecycle path before
 // a bounded TerminateProcess fallback.
 func requestBrowserClose(ctx context.Context, session *Session) error {
-	conn, err := dialFirstPage(ctx, session)
+	conn, err := dialFirstPageNoEmulation(ctx, session)
 	if err != nil {
 		return err
 	}

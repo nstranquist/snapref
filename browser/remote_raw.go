@@ -24,8 +24,29 @@ type cdpTransport interface {
 	Read(context.Context, *cdproto.Message) error
 }
 
-// dialFirstPage opens a raw CDP connection to the session's first page target.
+// dialFirstPage opens a raw CDP connection to the session's first page target
+// and re-applies the session's persisted device emulation, which Chrome drops
+// whenever a previous connection closed.
 func dialFirstPage(ctx context.Context, s *Session) (interface {
+	cdpTransport
+	Close() error
+}, error) {
+	conn, err := dialFirstPageNoEmulation(ctx, s)
+	if err != nil {
+		return nil, err
+	}
+	if s != nil && s.Emulation != nil {
+		if err := applyEmulationOnConn(ctx, conn, s.Emulation); err != nil {
+			conn.Close()
+			return nil, fmt.Errorf("re-apply session viewport %s: %w", s.Emulation, err)
+		}
+	}
+	return conn, nil
+}
+
+// dialFirstPageNoEmulation is dialFirstPage without the emulation re-apply,
+// for lifecycle calls (Browser.close) where page layout is irrelevant.
+func dialFirstPageNoEmulation(ctx context.Context, s *Session) (interface {
 	cdpTransport
 	Close() error
 }, error) {
@@ -302,33 +323,4 @@ func waitForDocumentReady(ctx context.Context, conn cdpTransport, next func() in
 		return fmt.Errorf("document not ready within %s: %w", timeout, last)
 	}
 	return fmt.Errorf("document not ready within %s", timeout)
-}
-
-// rawSetViewport applies a page-level viewport override without involving
-// chromedp's target lifecycle. It is intentionally paired with the raw CDP
-// navigate/screenshot path used by persistent sessions.
-func rawSetViewport(ctx context.Context, s *Session, vp Viewport, timeout time.Duration) error {
-	if timeout == 0 {
-		timeout = 30 * time.Second
-	}
-	if vp.Width <= 0 || vp.Height <= 0 {
-		return fmt.Errorf("viewport dimensions must be positive")
-	}
-	cctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	conn, err := dialFirstPage(cctx, s)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	_, err = cdpCall(cctx, conn, 1, "Emulation.setDeviceMetricsOverride", map[string]any{
-		"width":             vp.Width,
-		"height":            vp.Height,
-		"deviceScaleFactor": 1,
-		"mobile":            false,
-		"scale":             1,
-		"screenWidth":       vp.Width,
-		"screenHeight":      vp.Height,
-	})
-	return err
 }
