@@ -5,6 +5,18 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ## Unreleased
 
+### Added
+
+- `browser.AdmissionRuntimeKind` predicts the runtime an auto request will
+  launch, without verifying the binary, so an admission layer can price the
+  session (headless-shell or Chrome for Testing) before it starts.
+
+### Fixed
+
+- The idle watchdog now waits on the browser process exit (kqueue
+  `NOTE_EXIT` on macOS and BSD, a one-second poll elsewhere), so it ends
+  within about a second of `close` instead of after its next minute check.
+
 ## 0.2.0 - 2026-11-16
 
 ### Fixed

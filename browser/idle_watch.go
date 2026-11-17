@@ -31,9 +31,10 @@ type IdleWatchOptions struct {
 	PollInterval time.Duration
 }
 
-// IdleWatchPollInterval bounds the wake-up frequency of detached watchdogs.
-// They use no busy loop and wake at most once per second for very short test
-// leases and at most once per minute for normal leases.
+// IdleWatchPollInterval bounds the lease-expiry wake-up frequency of detached
+// watchdogs. They use no busy loop and wake at most once per second for very
+// short test leases and at most once per minute for normal leases. Browser
+// exit wakes a watchdog at once through watchProcessExit.
 func IdleWatchPollInterval(idleTimeout time.Duration) time.Duration {
 	poll := idleTimeout / 4
 	if poll > time.Minute {
@@ -65,6 +66,11 @@ func WatchIdleSession(ctx context.Context, opts IdleWatchOptions) (IdleExpiryRes
 	if poll <= 0 {
 		poll = IdleWatchPollInterval(opts.IdleTimeout)
 	}
+	// Wake as soon as the browser exits (close, crash, or pressure stop), not
+	// at the next lease poll, which is up to a minute away for normal leases.
+	// 2026-11-17: watchers outlived a closed session by 19 to 60 s.
+	exited, stopExitWatch := watchProcessExit(opts.ExpectedPID)
+	defer stopExitWatch()
 	for {
 		result, err := ExpireIdleSession(
 			opts.Name,
@@ -87,6 +93,12 @@ func WatchIdleSession(ctx context.Context, opts IdleWatchOptions) (IdleExpiryRes
 			}
 			return IdleExpiryResult{}, ctx.Err()
 		case <-timer.C:
+		case <-exited:
+			timer.Stop()
+			// Recheck at once. Close may still hold the lifecycle lock; the
+			// expiry check waits for it and then sees the session gone. A
+			// nil channel never fires again.
+			exited = nil
 		}
 	}
 }
