@@ -1,0 +1,465 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-11-17T11:37:04.479497Z",
+  "method": "Each run: open a fresh session on a local fixture, take a snapshot, three screenshots, 10 s idle, close. Process tree = processes started during the run whose argv names the session, plus their descendants; CPU is the tree's CPU-time delta over wall time (100 = one core). Providers alternate run by run.",
+  "providers": [
+    {
+      "name": "snapref/headless-shell",
+      "version": "0.2.0 \u00b7 headless-shell 157.0.8103.78",
+      "latest": "157.0.8103.78",
+      "disk_mb": {
+        "runtime": 204.9
+      },
+      "median": {
+        "active_cpu_pct": 12.6,
+        "active_rss_mb": 290,
+        "close_ms": 164,
+        "drain_ms": 19154,
+        "idle_cpu_pct": 0,
+        "idle_procs": 5,
+        "idle_rss_mb": 290.5,
+        "left_after_close": 0,
+        "load_1m": 22.5,
+        "screenshot_ms": 81,
+        "startup_ms": 476
+      }
+    },
+    {
+      "name": "snapref/chrome-for-testing",
+      "version": "0.2.0 \u00b7 chrome-for-testing 157.0.8103.78",
+      "latest": "157.0.8103.78",
+      "disk_mb": {
+        "runtime": 369.9
+      },
+      "median": {
+        "active_cpu_pct": 16.4,
+        "active_rss_mb": 927.5,
+        "close_ms": 182,
+        "drain_ms": 19015,
+        "idle_cpu_pct": 1.8,
+        "idle_procs": 11,
+        "idle_rss_mb": 986.4,
+        "left_after_close": 0,
+        "load_1m": 19.7,
+        "screenshot_ms": 87,
+        "startup_ms": 1843
+      }
+    },
+    {
+      "name": "agent-browser",
+      "version": "agent-browser 0.43.0",
+      "latest": "0.43.0",
+      "disk_mb": {
+        "browsers": 369.9,
+        "npx_cache": 17.3
+      },
+      "median": {
+        "active_cpu_pct": 11.8,
+        "active_rss_mb": 1330.1,
+        "close_ms": 739,
+        "drain_ms": 79,
+        "idle_cpu_pct": 1.4,
+        "idle_procs": 15,
+        "idle_rss_mb": 1327.5,
+        "left_after_close": 0,
+        "load_1m": 18,
+        "screenshot_ms": 399,
+        "startup_ms": 3104
+      }
+    }
+  ],
+  "runs": [
+    {
+      "provider": "snapref/headless-shell",
+      "run": 1,
+      "load_1m": 34.13,
+      "startup_ms": 469,
+      "screenshot_ms": 79,
+      "active": {
+        "procs": 5,
+        "rss_mb": 289.8,
+        "cpu_pct": 12.9
+      },
+      "idle": {
+        "procs": 5,
+        "rss_mb": 290.5,
+        "cpu_pct": 0
+      },
+      "close_ms": 239,
+      "drain_ms": 18964,
+      "left_after_close": 0,
+      "registered_foreground_app": false,
+      "front_app_changed": false,
+      "fidelity": {
+        "size": "1440x900",
+        "exact_colours": true
+      }
+    },
+    {
+      "provider": "snapref/chrome-for-testing",
+      "run": 1,
+      "load_1m": 26.11,
+      "startup_ms": 1843,
+      "screenshot_ms": 81,
+      "active": {
+        "procs": 10,
+        "rss_mb": 931.4,
+        "cpu_pct": 15.1
+      },
+      "idle": {
+        "procs": 11,
+        "rss_mb": 991.2,
+        "cpu_pct": 2.2
+      },
+      "close_ms": 182,
+      "drain_ms": 19220,
+      "left_after_close": 0,
+      "registered_foreground_app": false,
+      "front_app_changed": false,
+      "fidelity": {
+        "size": "1440x757",
+        "exact_colours": true
+      }
+    },
+    {
+      "provider": "agent-browser",
+      "run": 1,
+      "load_1m": 30.16,
+      "startup_ms": 2763,
+      "screenshot_ms": 399,
+      "active": {
+        "procs": 15,
+        "rss_mb": 1342.9,
+        "cpu_pct": 13.4
+      },
+      "idle": {
+        "procs": 15,
+        "rss_mb": 1336.3,
+        "cpu_pct": 1.8
+      },
+      "close_ms": 696,
+      "drain_ms": 164,
+      "left_after_close": 0,
+      "registered_foreground_app": false,
+      "front_app_changed": false,
+      "fidelity": {
+        "size": "1280x577",
+        "exact_colours": true
+      }
+    },
+    {
+      "provider": "snapref/headless-shell",
+      "run": 2,
+      "load_1m": 26.2,
+      "startup_ms": 403,
+      "screenshot_ms": 82,
+      "active": {
+        "procs": 5,
+        "rss_mb": 289.7,
+        "cpu_pct": 12.6
+      },
+      "idle": {
+        "procs": 5,
+        "rss_mb": 290.3,
+        "cpu_pct": 0.1
+      },
+      "close_ms": 149,
+      "drain_ms": 19176,
+      "left_after_close": 0,
+      "registered_foreground_app": false,
+      "front_app_changed": false,
+      "fidelity": {
+        "size": "1440x900",
+        "exact_colours": true
+      }
+    },
+    {
+      "provider": "snapref/chrome-for-testing",
+      "run": 2,
+      "load_1m": 23.16,
+      "startup_ms": 1417,
+      "screenshot_ms": 87,
+      "active": {
+        "procs": 10,
+        "rss_mb": 929.5,
+        "cpu_pct": 25.6
+      },
+      "idle": {
+        "procs": 11,
+        "rss_mb": 988.5,
+        "cpu_pct": 1.6
+      },
+      "close_ms": 181,
+      "drain_ms": 19180,
+      "left_after_close": 0,
+      "registered_foreground_app": false,
+      "front_app_changed": false,
+      "fidelity": {
+        "size": "1440x757",
+        "exact_colours": true
+      }
+    },
+    {
+      "provider": "agent-browser",
+      "run": 2,
+      "load_1m": 17.07,
+      "startup_ms": 3104,
+      "screenshot_ms": 412,
+      "active": {
+        "procs": 15,
+        "rss_mb": 1334.4,
+        "cpu_pct": 12.2
+      },
+      "idle": {
+        "procs": 15,
+        "rss_mb": 1327.5,
+        "cpu_pct": 1.1
+      },
+      "close_ms": 756,
+      "drain_ms": 72,
+      "left_after_close": 0,
+      "registered_foreground_app": false,
+      "front_app_changed": false,
+      "fidelity": {
+        "size": "1280x577",
+        "exact_colours": true
+      }
+    },
+    {
+      "provider": "snapref/headless-shell",
+      "run": 3,
+      "load_1m": 14.34,
+      "startup_ms": 476,
+      "screenshot_ms": 81,
+      "active": {
+        "procs": 5,
+        "rss_mb": 290,
+        "cpu_pct": 12.6
+      },
+      "idle": {
+        "procs": 5,
+        "rss_mb": 290.6,
+        "cpu_pct": 0
+      },
+      "close_ms": 152,
+      "drain_ms": 19154,
+      "left_after_close": 0,
+      "registered_foreground_app": false,
+      "front_app_changed": false,
+      "fidelity": {
+        "size": "1440x900",
+        "exact_colours": true
+      }
+    },
+    {
+      "provider": "snapref/chrome-for-testing",
+      "run": 3,
+      "load_1m": 12.05,
+      "startup_ms": 1444,
+      "screenshot_ms": 77,
+      "active": {
+        "procs": 10,
+        "rss_mb": 927.5,
+        "cpu_pct": 16.4
+      },
+      "idle": {
+        "procs": 11,
+        "rss_mb": 986.4,
+        "cpu_pct": 1.8
+      },
+      "close_ms": 170,
+      "drain_ms": 19015,
+      "left_after_close": 0,
+      "registered_foreground_app": false,
+      "front_app_changed": false,
+      "fidelity": {
+        "size": "1440x757",
+        "exact_colours": true
+      }
+    },
+    {
+      "provider": "agent-browser",
+      "run": 3,
+      "load_1m": 11.81,
+      "startup_ms": 2763,
+      "screenshot_ms": 335,
+      "active": {
+        "procs": 14,
+        "rss_mb": 1268.3,
+        "cpu_pct": 6.5
+      },
+      "idle": {
+        "procs": 15,
+        "rss_mb": 1324.6,
+        "cpu_pct": 1.6
+      },
+      "close_ms": 1712,
+      "drain_ms": 70,
+      "left_after_close": 0,
+      "registered_foreground_app": false,
+      "front_app_changed": false,
+      "fidelity": {
+        "size": "1280x577",
+        "exact_colours": true
+      }
+    },
+    {
+      "provider": "snapref/headless-shell",
+      "run": 4,
+      "load_1m": 11.5,
+      "startup_ms": 1024,
+      "screenshot_ms": 84,
+      "active": {
+        "procs": 5,
+        "rss_mb": 290,
+        "cpu_pct": 9.2
+      },
+      "idle": {
+        "procs": 5,
+        "rss_mb": 290.6,
+        "cpu_pct": 0
+      },
+      "close_ms": 167,
+      "drain_ms": 18915,
+      "left_after_close": 0,
+      "registered_foreground_app": false,
+      "front_app_changed": false,
+      "fidelity": {
+        "size": "1440x900",
+        "exact_colours": true
+      }
+    },
+    {
+      "provider": "snapref/chrome-for-testing",
+      "run": 4,
+      "load_1m": 13.46,
+      "startup_ms": 2830,
+      "screenshot_ms": 101,
+      "active": {
+        "procs": 10,
+        "rss_mb": 923.9,
+        "cpu_pct": 11.6
+      },
+      "idle": {
+        "procs": 11,
+        "rss_mb": 862.8,
+        "cpu_pct": 2.3
+      },
+      "close_ms": 521,
+      "drain_ms": 18419,
+      "left_after_close": 0,
+      "registered_foreground_app": false,
+      "front_app_changed": false,
+      "fidelity": {
+        "size": "1440x757",
+        "exact_colours": true
+      }
+    },
+    {
+      "provider": "agent-browser",
+      "run": 4,
+      "load_1m": 23.04,
+      "startup_ms": 5866,
+      "screenshot_ms": 578,
+      "active": {
+        "procs": 15,
+        "rss_mb": 1330.1,
+        "cpu_pct": 10.5
+      },
+      "idle": {
+        "procs": 15,
+        "rss_mb": 1329.8,
+        "cpu_pct": 0.9
+      },
+      "close_ms": 567,
+      "drain_ms": 85,
+      "left_after_close": 0,
+      "registered_foreground_app": false,
+      "front_app_changed": false,
+      "fidelity": {
+        "size": "1280x577",
+        "exact_colours": true
+      }
+    },
+    {
+      "provider": "snapref/headless-shell",
+      "run": 5,
+      "load_1m": 22.54,
+      "startup_ms": 684,
+      "screenshot_ms": 77,
+      "active": {
+        "procs": 5,
+        "rss_mb": 290.3,
+        "cpu_pct": 13
+      },
+      "idle": {
+        "procs": 5,
+        "rss_mb": 289,
+        "cpu_pct": 0.1
+      },
+      "close_ms": 164,
+      "drain_ms": 19985,
+      "left_after_close": 0,
+      "registered_foreground_app": false,
+      "front_app_changed": false,
+      "fidelity": {
+        "size": "1440x900",
+        "exact_colours": true
+      }
+    },
+    {
+      "provider": "snapref/chrome-for-testing",
+      "run": 5,
+      "load_1m": 19.68,
+      "startup_ms": 2772,
+      "screenshot_ms": 100,
+      "active": {
+        "procs": 10,
+        "rss_mb": 924.7,
+        "cpu_pct": 25.3
+      },
+      "idle": {
+        "procs": 11,
+        "rss_mb": 854.6,
+        "cpu_pct": 1.7
+      },
+      "close_ms": 416,
+      "drain_ms": 18736,
+      "left_after_close": 0,
+      "registered_foreground_app": false,
+      "front_app_changed": false,
+      "fidelity": {
+        "size": "1440x757",
+        "exact_colours": true
+      }
+    },
+    {
+      "provider": "agent-browser",
+      "run": 5,
+      "load_1m": 17.99,
+      "startup_ms": 6269,
+      "screenshot_ms": 341,
+      "active": {
+        "procs": 15,
+        "rss_mb": 1329.1,
+        "cpu_pct": 11.8
+      },
+      "idle": {
+        "procs": 15,
+        "rss_mb": 1106.6,
+        "cpu_pct": 1.4
+      },
+      "close_ms": 739,
+      "drain_ms": 79,
+      "left_after_close": 0,
+      "registered_foreground_app": false,
+      "front_app_changed": true,
+      "fidelity": {
+        "size": "1280x577",
+        "exact_colours": true
+      }
+    }
+  ],
+  "resident_after_all": {},
+  "machine": "darwin/arm64, 14 CPUs, macOS 26.7.3"
+}

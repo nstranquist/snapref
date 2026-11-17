@@ -142,7 +142,7 @@ func resultFailureCause(r Result) (browser.ErrorClass, string) {
 		class = browser.ErrorClassInternal
 	}
 	switch r.ReasonCode {
-	case "javascript_exception", "select_option_failed", "host_admission_denied",
+	case "javascript_exception", "select_option_failed", "host_admission_denied", "session_not_open", "runtime_missing",
 		"invalid_input", "policy_denied", "gate_not_satisfied", "selector_failed",
 		"transport_failed", "deadline_exceeded", "product_failed", "command_failure":
 		return class, r.ReasonCode

@@ -5,8 +5,18 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ## Unreleased
 
+## 0.2.1 - 2026-11-17
+
 ### Added
 
+- `cmd/snapref-runtime-cost` records a machine-local runtime cost receipt
+  (startup, screenshot and close time, process count, memory, CPU and disk)
+  for SnapRef headless-shell, SnapRef Chrome for Testing and agent-browser.
+  `benchmark/runtime-cost.json` is the first receipt.
+- `browser.RuntimeMissingError` reports a managed runtime that is not
+  installed. Operation telemetry classifies it as `runtime_missing`, and a
+  command against a session that is not open as `session_not_open`, instead of
+  a generic usage error.
 - `browser.AdmissionRuntimeKind` predicts the runtime an auto request will
   launch, without verifying the binary, so an admission layer can price the
   session (headless-shell or Chrome for Testing) before it starts.

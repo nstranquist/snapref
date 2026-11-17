@@ -2,6 +2,7 @@ package browser
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -66,5 +67,26 @@ func TestRemoteDriverMissingSessionUsesTheHostOpenCommand(t *testing.T) {
 	_, err := remoteDriver{}.session("nope")
 	if err == nil || err.Error() != `no such session "nope". Open it: host-cli browser open nope` {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestMissingSessionHasItsOwnReason(t *testing.T) {
+	missing := MissingSessionError("never-opened", "snapref open", os.ErrNotExist)
+	if ClassifyError(missing) != ErrorClassUsage || ErrorReason(missing) != "session_not_open" {
+		t.Fatalf("class=%s reason=%s", ClassifyError(missing), ErrorReason(missing))
+	}
+	if ErrorReason(errors.New("unknown flag --bogus")) == "session_not_open" {
+		t.Fatal("ordinary usage error reported as a missing session")
+	}
+}
+
+func TestMissingRuntimeHasItsOwnReason(t *testing.T) {
+	err := fmt.Errorf("open session: %w", missingRuntimeError(RuntimeChromeForTesting))
+	var typed *RuntimeMissingError
+	if !errors.As(err, &typed) || typed.Kind != RuntimeChromeForTesting || ErrorReason(err) != "runtime_missing" {
+		t.Fatalf("typed=%v reason=%s", typed, ErrorReason(err))
+	}
+	if !strings.Contains(err.Error(), "is not installed; run `") {
+		t.Fatalf("remediation text changed: %v", err)
 	}
 }

@@ -473,8 +473,18 @@ func requireRuntimeCapabilities(kind RuntimeKind, capabilities RuntimeCapabiliti
 	return nil
 }
 
+// RuntimeMissingError reports that the managed browser runtime a session needs
+// is not installed. It is a missing local dependency, not a caller mistake or
+// a defect in the command, so telemetry can classify it apart from both.
+type RuntimeMissingError struct {
+	Kind RuntimeKind
+	msg  string
+}
+
+func (e *RuntimeMissingError) Error() string { return e.msg }
+
 func missingRuntimeError(kind RuntimeKind) error {
-	return fmt.Errorf("managed browser runtime %s is not installed; run `%s`", kind, runtimeInstallRemediation(kind))
+	return &RuntimeMissingError{Kind: kind, msg: fmt.Sprintf("managed browser runtime %s is not installed; run `%s`", kind, runtimeInstallRemediation(kind))}
 }
 
 func runtimeInstallRemediation(kind RuntimeKind) string {

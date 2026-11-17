@@ -49,6 +49,17 @@ func ErrorReason(err error) string {
 	if errors.As(err, &selection) {
 		return "select_option_failed"
 	}
+	// A command against a session that is not open is still caller usage, but
+	// it is a different mistake from a malformed argument: the fix is to open
+	// (or reopen) the session, not to change the call.
+	var missing *SessionMissingError
+	if errors.As(err, &missing) {
+		return "session_not_open"
+	}
+	var runtime *RuntimeMissingError
+	if errors.As(err, &runtime) {
+		return "runtime_missing"
+	}
 	return ErrorClassReason(ClassifyError(err))
 }
 

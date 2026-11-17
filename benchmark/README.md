@@ -25,3 +25,22 @@ This live comparison is intentionally outside `make verify`: it downloads
 current competitor packages and is therefore non-deterministic. The SnapRef
 release gate uses its own pinned tests; the comparison is a dated product
 receipt.
+
+## Runtime cost (machine-local receipt)
+
+```sh
+go run ./cmd/snapref-runtime-cost --runs 5 --out benchmark/runtime-cost.json
+```
+
+For each provider (SnapRef headless-shell, SnapRef chrome-for-testing and
+agent-browser), each run opens a fresh session on a local fixture, takes a
+snapshot and three screenshots, idles 10 s, and closes. The receipt records:
+startup, screenshot and close time; process count, resident memory and CPU
+while active and while idle; the time until every session process exits
+(`drain_ms`) and what is still alive 30 s after close; whether any session
+process registered as a Foreground app or the front app changed; whether the
+screenshot reproduced the fixture's four colours exactly; disk use; and the
+newest available version. The host's 1-minute load is stored with every run,
+and providers alternate run by run, because other work moves the numbers.
+
+`--providers` limits the run (for example `--providers snapref/headless-shell`).
