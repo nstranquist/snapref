@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-const testReleaseVersion = "0.2.2"
+const testReleaseVersion = "0.2.3"
 
 func TestReleaseVersionMirrorsCLI(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", ".."))

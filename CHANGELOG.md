@@ -5,6 +5,8 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ## Unreleased
 
+## 0.2.3 - 2026-11-18
+
 ### Fixed
 
 - Screenshots of a session with a held viewport come out in device pixels
