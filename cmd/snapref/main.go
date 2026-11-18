@@ -18,7 +18,7 @@ import (
 	"github.com/nstranquist/snapref/provenance"
 )
 
-const version = "0.2.1"
+const version = "0.2.2"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {

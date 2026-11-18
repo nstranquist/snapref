@@ -5,6 +5,22 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ## Unreleased
 
+## 0.2.2 - 2026-11-17
+
+### Fixed
+
+- A viewport set on a persistent session now holds between calls. Chrome
+  keeps an Emulation override only while the DevTools session that set it is
+  open, and closing that session clears it for the whole page, so between two
+  calls the page went back to the window width and `(max-width)` listeners
+  fired on every call. A holder process (`browser.HoldSessionEmulation`,
+  started through `browser.EmulationHolderLauncher`) keeps one connection
+  with the override applied; connections apply nothing while it serves the
+  spec, a one-shot screenshot size asks it to re-apply, and clearing the
+  viewport stops it. `browser.DetachedHolderLauncher` and
+  `browser.RunHoldViewport` give a CLI the hidden `__hold-viewport`
+  subcommand. Without a launcher, connections re-apply per call as before.
+
 ## 0.2.1 - 2026-11-17
 
 ### Added
