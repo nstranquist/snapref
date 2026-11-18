@@ -46,3 +46,14 @@ archive. Private product handoffs stay in the host.
 `processtree` is vendored at reviewed `v0.1.0-rc.1`. Release and benchmark
 commands use it so a cancelled `go build` or comparison child cannot leak
 descendants. SnapRef does not depend on a sibling Go module.
+
+A session viewport (`RemoteSetDeviceEmulation`) is held by one detached
+holder process per session. The browser keeps a device override only while
+the DevTools connection that set it is open, and closing that connection
+clears it for the page. The holder keeps one page connection open with the
+override applied, and other connections skip their own apply while it
+serves the current spec. It exits when the viewport is cleared, the session
+closes or is replaced, or the browser exits. A host registers
+`EmulationHolderLauncher` (usually `DetachedHolderLauncher`) and routes the
+hidden `__hold-viewport` subcommand to `RunHoldViewport`. Without a launcher,
+each connection re-applies the override for its own lifetime only.
