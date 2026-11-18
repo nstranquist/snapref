@@ -70,8 +70,9 @@ func remoteCtx(parent context.Context, s *Session) (context.Context, context.Can
 		return nil, nil, nil, fmt.Errorf("attach persistent page: %w", err)
 	}
 	// Device emulation belongs to the DevTools session; re-apply the
-	// persisted override on this new attachment (see DeviceEmulation).
-	if s.Emulation != nil {
+	// persisted override on this new attachment unless a live holder keeps
+	// it (see DeviceEmulation and emulation_hold.go).
+	if s.Emulation != nil && !holderServes(s) {
 		if err := chromedp.Run(taskCtx, emulationActions(s.Emulation)); err != nil {
 			closeConnection()
 			return nil, nil, nil, fmt.Errorf("re-apply session viewport %s: %w", s.Emulation, err)

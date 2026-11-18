@@ -179,7 +179,8 @@ func SetSessionEmulation(name string, e *DeviceEmulation) (*Session, error) {
 
 // RemoteSetDeviceEmulation applies e to the session's page and persists it, so
 // later navigations, evals and screenshots in any process keep it. A nil e
-// clears the override and the persisted record.
+// clears the override and the persisted record. With a holder launcher, a
+// holder process keeps the override applied between calls (WORK-1320).
 func RemoteSetDeviceEmulation(ctx context.Context, s *Session, e *DeviceEmulation, timeout time.Duration) error {
 	if e != nil {
 		if err := e.Validate(); err != nil {
@@ -189,21 +190,44 @@ func RemoteSetDeviceEmulation(ctx context.Context, s *Session, e *DeviceEmulatio
 	if timeout == 0 {
 		timeout = 30 * time.Second
 	}
-	if err := rawApplyEmulation(ctx, s, e, timeout); err != nil {
+	if s.Name == "" {
+		if err := rawApplyEmulation(ctx, s, e, timeout); err != nil {
+			return err
+		}
+		s.Emulation = nil
+		if e != nil {
+			copied := *e
+			s.Emulation = &copied
+		}
+		return nil
+	}
+	saved, err := SetSessionEmulation(s.Name, e)
+	if err != nil {
+		return fmt.Errorf("persist viewport: %w", err)
+	}
+	if e == nil {
+		// The holder sees the cleared spec and exits; closing its connection
+		// clears its override. Then clear on a fresh connection as well.
+		if holderAlive(saved) {
+			if saved, err = waitHolder(ctx, s.Name, timeout, func(x *Session) bool { return !holderAlive(x) }); err != nil {
+				return fmt.Errorf("stop viewport holder: %w", err)
+			}
+		}
+		if err := rawApplyEmulation(ctx, saved, nil, timeout); err != nil {
+			return err
+		}
+	} else if EmulationHolderLauncher != nil {
+		if saved, err = holdSessionEmulation(ctx, saved, timeout); err != nil {
+			// The page still gets the size on each call, as before.
+			if applyErr := rawApplyEmulation(ctx, saved, e, timeout); applyErr != nil {
+				return errors.Join(err, applyErr)
+			}
+			return fmt.Errorf("viewport %s applies per call only: %w", e, err)
+		}
+	} else if err := rawApplyEmulation(ctx, saved, e, timeout); err != nil {
 		return err
 	}
-	if s.Name != "" {
-		saved, err := SetSessionEmulation(s.Name, e)
-		if err != nil {
-			return fmt.Errorf("persist viewport: %w", err)
-		}
-		s.Emulation = saved.Emulation
-	} else if e != nil {
-		copied := *e
-		s.Emulation = &copied
-	} else {
-		s.Emulation = nil
-	}
+	s.Emulation, s.EmulationRequest, s.EmulationHolder = saved.Emulation, saved.EmulationRequest, saved.EmulationHolder
 	return nil
 }
 
@@ -223,9 +247,17 @@ func rawApplyEmulation(ctx context.Context, s *Session, e *DeviceEmulation, time
 
 // restoreSessionEmulation returns the page to the session's persisted state
 // after a one-shot override: the persisted emulation, or none.
+// A live holder is asked to apply it again: re-applying here would set an
+// override that this connection's close clears at once.
 func restoreSessionEmulation(ctx context.Context, s *Session, timeout time.Duration) error {
 	if timeout == 0 {
 		timeout = 10 * time.Second
+	}
+	if s.Name != "" {
+		held, err := requestHolderApply(ctx, s.Name, timeout)
+		if held || err != nil {
+			return err
+		}
 	}
 	return rawApplyEmulation(ctx, s, s.Emulation, timeout)
 }

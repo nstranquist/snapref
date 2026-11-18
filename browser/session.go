@@ -35,9 +35,15 @@ type Session struct {
 	RuntimeManaged   bool                `json:"runtime_managed,omitempty"`
 	RuntimeManifest  string              `json:"runtime_manifest_digest,omitempty"`
 	RuntimeCaps      RuntimeCapabilities `json:"runtime_capabilities,omitempty"`
-	// Emulation is the persisted page-level device override; every CDP
-	// connection re-applies it (see DeviceEmulation).
+	// Emulation is the persisted page-level device override. A live holder
+	// keeps it applied between calls; without one, every CDP connection
+	// re-applies it (see DeviceEmulation and emulation_hold.go).
 	Emulation *DeviceEmulation `json:"device_emulation,omitempty"`
+	// EmulationRequest asks the holder to apply the spec again; it is bumped
+	// after a one-shot override cleared the page's override.
+	EmulationRequest int `json:"device_emulation_request,omitempty"`
+	// EmulationHolder is the live holder's last acknowledgement.
+	EmulationHolder *EmulationHolder `json:"device_emulation_holder,omitempty"`
 }
 
 // LifecyclePolicy makes the owner-selected lifetime of a saved session

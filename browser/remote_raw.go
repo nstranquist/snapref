@@ -26,7 +26,9 @@ type cdpTransport interface {
 
 // dialFirstPage opens a raw CDP connection to the session's first page target
 // and re-applies the session's persisted device emulation, which Chrome drops
-// whenever a previous connection closed.
+// whenever a previous connection closed. While a live holder serves the spec
+// it applies nothing: closing a connection that set an override would clear
+// the holder's override too.
 func dialFirstPage(ctx context.Context, s *Session) (interface {
 	cdpTransport
 	Close() error
@@ -35,7 +37,7 @@ func dialFirstPage(ctx context.Context, s *Session) (interface {
 	if err != nil {
 		return nil, err
 	}
-	if s != nil && s.Emulation != nil {
+	if s != nil && s.Emulation != nil && !holderServes(s) {
 		if err := applyEmulationOnConn(ctx, conn, s.Emulation); err != nil {
 			conn.Close()
 			return nil, fmt.Errorf("re-apply session viewport %s: %w", s.Emulation, err)

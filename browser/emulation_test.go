@@ -357,3 +357,125 @@ func pngSize(t *testing.T, data []byte) (int, int) {
 	}
 	return cfg.Width, cfg.Height
 }
+
+// plainWidth reads innerWidth and the recorded media-query flips over a
+// connection that applies no emulation, as an exec call does while a holder
+// serves the viewport. It shows the page's state between calls.
+func plainWidth(t *testing.T, s *Session) (int, []bool) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := dialFirstPageNoEmulation(ctx, s)
+	if err != nil {
+		t.Fatalf("plain dial: %v", err)
+	}
+	defer conn.Close()
+	raw, err := cdpCall(ctx, conn, 1, "Runtime.evaluate", map[string]any{
+		"expression": `JSON.stringify({w: innerWidth, hits: window.hits || []})`, "returnByValue": true,
+	})
+	if err != nil {
+		t.Fatalf("plain eval: %v", err)
+	}
+	var r struct {
+		Result struct {
+			Value string `json:"value"`
+		} `json:"result"`
+	}
+	var v struct {
+		W    int    `json:"w"`
+		Hits []bool `json:"hits"`
+	}
+	if err := json.Unmarshal(raw, &r); err != nil || json.Unmarshal([]byte(r.Result.Value), &v) != nil {
+		t.Fatalf("plain eval decode: %s", raw)
+	}
+	return v.W, v.Hits
+}
+
+// Real Chrome, WORK-1320: the viewport holds between calls. Before the
+// holder, each call applied the override on its own connection and Chrome
+// dropped it when the call ended, so between calls the page was back at the
+// window width and a (max-width) listener flipped on every call.
+func TestViewportHoldsBetweenCallsRealChrome(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping browser integration test in -short mode")
+	}
+	requireManagedChromeForTesting(t)
+	fixture := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = io.WriteString(w, `<!doctype html><html><head><meta name="viewport" content="width=device-width"></head>
+<body><main>hold fixture</main><script>window.hits = [];
+matchMedia("(max-width: 760px)").addEventListener("change", e => hits.push(e.matches));</script></body></html>`)
+	}))
+	defer fixture.Close()
+
+	holdCtx, stopHolders := context.WithCancel(context.Background())
+	held := make(chan error, 4)
+	prev := EmulationHolderLauncher
+	EmulationHolderLauncher = func(name string, pid int) error {
+		go func() { held <- HoldSessionEmulation(holdCtx, name, pid) }()
+		return nil
+	}
+	defer func() { stopHolders(); EmulationHolderLauncher = prev }()
+
+	const name = "viewport-hold-e2e"
+	sess, err := Open(OpenOptions{Name: name, Runtime: RuntimeChromeForTesting, ReadyTimeout: 30 * time.Second})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer Close(name, true)
+	ctx := context.Background()
+	if err := RemoteNavigate(ctx, sess, fixture.URL, 30*time.Second); err != nil {
+		t.Fatalf("navigate: %v", err)
+	}
+	if w, _ := plainWidth(t, sess); w <= 760 {
+		t.Fatalf("window width %d: the fixture needs a desktop start", w)
+	}
+	mobile := &DeviceEmulation{Width: 390, Height: 844, DeviceScaleFactor: 2, Mobile: true, Touch: true}
+	if err := RemoteSetDeviceEmulation(ctx, sess, mobile, 10*time.Second); err != nil {
+		t.Fatalf("set viewport: %v", err)
+	}
+	for i := 0; i < 3; i++ {
+		s, err := LoadSession(name) // each exec loads the record afresh
+		if err != nil {
+			t.Fatal(err)
+		}
+		var w int
+		if err := RemoteEval(ctx, s, "", `innerWidth`, &w, 10*time.Second); err != nil || w != 390 {
+			t.Fatalf("call %d: innerWidth %d, err %v", i, w, err)
+		}
+		if w, hits := plainWidth(t, s); w != 390 || len(hits) != 1 || !hits[0] {
+			t.Fatalf("between calls after call %d: width %d, media flips %v; want 390 and [true]", i, w, hits)
+		}
+	}
+
+	// A one-shot capture size ends with its connection; the holder restores.
+	s, _ := LoadSession(name)
+	if _, err := RemoteScreenshotCurrentWithOptions(ctx, s, ScreenshotCurrentOptions{
+		Timeout: 20 * time.Second, Emulation: &DeviceEmulation{Width: 1280, Height: 800},
+	}); err != nil {
+		t.Fatalf("one-shot screenshot: %v", err)
+	}
+	if w, _ := plainWidth(t, s); w != 390 {
+		t.Fatalf("after one-shot capture: width %d, want 390", w)
+	}
+
+	// Clearing stops the holder and the page returns to the window width.
+	if err := RemoteSetDeviceEmulation(ctx, s, nil, 10*time.Second); err != nil {
+		t.Fatalf("clear viewport: %v", err)
+	}
+	select {
+	case err := <-held:
+		if err != nil {
+			t.Fatalf("holder: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("holder still running after clear")
+	}
+	cleared, _ := LoadSession(name)
+	if cleared.EmulationHolder != nil {
+		t.Fatalf("holder record left after clear: %+v", cleared.EmulationHolder)
+	}
+	if w, _ := plainWidth(t, cleared); w <= 760 {
+		t.Fatalf("after clear: width %d, want the desktop window", w)
+	}
+}
