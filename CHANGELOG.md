@@ -5,6 +5,24 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ## Unreleased
 
+### Fixed
+
+- Screenshots of a session with a held viewport come out in device pixels
+  and no longer reset the page's device scale factor. Chrome builds a
+  clipped or full-page capture from the device metrics of the DevTools
+  session that sends it, then restores that session's own metrics on the
+  page. An exec connection has no override while the holder serves, so a
+  `--mobile` (DPR 2) capture came out at 1x and left the page at DPR 1.
+  While a holder serves the session, `RemoteScreenshotCurrentWithOptions`
+  and `RemoteScreenshotWithCaptureAndWait` now send the capture to the
+  holder, which runs it on the connection that owns the override (a file
+  request per capture; it fails closed when no holder takes it within 3 s).
+- The holder re-applies the viewport when the page's device scale factor
+  drifts, not only its width, and nudges the scale factor first when it
+  re-applies the same spec: Chrome ignores an exact repeat of the override
+  a connection set last. A one-shot screenshot size now restores DPR 2 as
+  well as the width.
+
 ## 0.2.2 - 2026-11-17
 
 ### Fixed

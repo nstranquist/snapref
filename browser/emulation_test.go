@@ -391,6 +391,43 @@ func plainWidth(t *testing.T, s *Session) (int, []bool) {
 	return v.W, v.Hits
 }
 
+// plainDPR reads devicePixelRatio over a connection that applies no
+// emulation.
+func plainDPR(t *testing.T, s *Session) float64 {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := dialFirstPageNoEmulation(ctx, s)
+	if err != nil {
+		t.Fatalf("plain dial: %v", err)
+	}
+	defer conn.Close()
+	dpr, err := pageDevicePixelRatio(ctx, conn, 1)
+	if err != nil {
+		t.Fatalf("plain DPR: %v", err)
+	}
+	return dpr
+}
+
+// foreignClipCapture sends a clipped capture over a connection without the
+// override, as a client from before the holder capture would.
+func foreignClipCapture(t *testing.T, s *Session) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := dialFirstPageNoEmulation(ctx, s)
+	if err != nil {
+		t.Fatalf("foreign dial: %v", err)
+	}
+	defer conn.Close()
+	if _, err := cdpCall(ctx, conn, 1, "Page.captureScreenshot", map[string]any{
+		"fromSurface": true,
+		"clip":        map[string]any{"x": 0, "y": 0, "width": 390, "height": 844, "scale": 1},
+	}); err != nil {
+		t.Fatalf("foreign capture: %v", err)
+	}
+}
+
 // Real Chrome, WORK-1320: the viewport holds between calls. Before the
 // holder, each call applied the override on its own connection and Chrome
 // dropped it when the call ended, so between calls the page was back at the
@@ -448,8 +485,48 @@ matchMedia("(max-width: 760px)").addEventListener("change", e => hits.push(e.mat
 		}
 	}
 
-	// A one-shot capture size ends with its connection; the holder restores.
+	// WORK-1428: captures run on the holder's connection, in device pixels,
+	// and leave the page at the held DPR (an exec-connection capture came
+	// out at DPR 1 and reset the page to DPR 1).
 	s, _ := LoadSession(name)
+	for _, beyond := range []bool{false, true} {
+		png, err := RemoteScreenshotCurrentWithOptions(ctx, s, ScreenshotCurrentOptions{Timeout: 20 * time.Second, CaptureBeyondViewport: beyond})
+		if err != nil {
+			t.Fatalf("screenshot-current (full page %v): %v", beyond, err)
+		}
+		if w, h := pngSize(t, png); w != 780 || (!beyond && h != 1688) {
+			t.Fatalf("screenshot-current (full page %v) = %dx%d, want 780 wide (and 1688 high for the viewport)", beyond, w, h)
+		}
+		if dpr := plainDPR(t, s); dpr != 2 {
+			t.Fatalf("after capture (full page %v): page DPR %g, want 2", beyond, dpr)
+		}
+	}
+	png, err := RemoteScreenshotWithCapture(ctx, s, fixture.URL+"/?shot=1", 20*time.Second, false)
+	if err != nil {
+		t.Fatalf("url screenshot: %v", err)
+	}
+	if w, _ := pngSize(t, png); w != 780 {
+		t.Fatalf("url screenshot width = %d, want 780", w)
+	}
+	if w, hits := plainWidth(t, s); w != 390 || len(hits) != 0 {
+		// The navigation reloaded the page: no media flips since then.
+		t.Fatalf("after url capture: width %d, media flips %v", w, hits)
+	}
+
+	// A clipped capture from a connection without the override (an older
+	// client) resets the page to DPR 1; the holder sees the drift and
+	// re-applies the held DPR without changing the width.
+	foreignClipCapture(t, s)
+	deadline := time.Now().Add(3 * time.Second)
+	for plainDPR(t, s) != 2 {
+		if time.Now().After(deadline) {
+			t.Fatal("holder did not repair the DPR after a foreign capture")
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	// A one-shot capture size ends with its connection; the holder restores
+	// the width and the DPR.
 	if _, err := RemoteScreenshotCurrentWithOptions(ctx, s, ScreenshotCurrentOptions{
 		Timeout: 20 * time.Second, Emulation: &DeviceEmulation{Width: 1280, Height: 800},
 	}); err != nil {
@@ -457,6 +534,9 @@ matchMedia("(max-width: 760px)").addEventListener("change", e => hits.push(e.mat
 	}
 	if w, _ := plainWidth(t, s); w != 390 {
 		t.Fatalf("after one-shot capture: width %d, want 390", w)
+	}
+	if dpr := plainDPR(t, s); dpr != 2 {
+		t.Fatalf("after one-shot capture: page DPR %g, want 2", dpr)
 	}
 
 	// Clearing stops the holder and the page returns to the window width.

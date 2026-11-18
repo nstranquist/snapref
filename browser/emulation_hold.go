@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -157,6 +158,13 @@ func HoldSessionEmulation(ctx context.Context, name string, browserPID int) erro
 		return id
 	}
 	applied, appliedReq, baseline, polls := "", -1, -1.0, 0
+	// serve runs pending capture requests once the current spec is applied,
+	// so every image comes from the connection that owns the override.
+	serve := func(s *Session) {
+		if conn != nil && applied == s.Emulation.String() && appliedReq == s.EmulationRequest {
+			serveHolderCaptures(ctx, name, conn)
+		}
+	}
 	for {
 		s, err := LoadSession(name)
 		if err != nil || s.PID != browserPID || !processAlive(browserPID) {
@@ -185,6 +193,7 @@ func HoldSessionEmulation(ctx context.Context, name string, browserPID int) erro
 		check := polls%holdCheckEvery == 0
 		polls++
 		if !check && spec == applied && s.EmulationRequest == appliedReq {
+			serve(s)
 			if sleepCtx(ctx, holdPollInterval) != nil {
 				return ctx.Err()
 			}
@@ -192,8 +201,20 @@ func HoldSessionEmulation(ctx context.Context, name string, browserPID int) erro
 		}
 		cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		width, err := layoutWidth(cctx, conn, next())
-		if err == nil && (spec != applied || s.EmulationRequest != appliedReq || width != baseline) {
-			if err = applyEmulationOnConn(cctx, conn, s.Emulation); err == nil {
+		drifted := false
+		if err == nil && spec == applied {
+			// A capture from another DevTools session can reset the device
+			// scale factor without touching the width.
+			var dpr float64
+			if dpr, err = pageDevicePixelRatio(cctx, conn, next()); err == nil {
+				drifted = math.Abs(dpr-s.Emulation.Scale()) > 0.001
+			}
+		}
+		if err == nil && (spec != applied || s.EmulationRequest != appliedReq || width != baseline || drifted) {
+			// Chrome ignores a repeat of the override this connection set
+			// last, even when another session has changed the page since.
+			// Re-applying the same spec therefore nudges first.
+			if err = applyHeldEmulation(cctx, conn, s.Emulation, spec == applied); err == nil {
 				width, err = layoutWidth(cctx, conn, next())
 			}
 			if err == nil {
@@ -208,6 +229,9 @@ func HoldSessionEmulation(ctx context.Context, name string, browserPID int) erro
 			}
 		}
 		cancel()
+		if err == nil {
+			serve(s)
+		}
 		if err != nil {
 			// The page target went away or the connection broke: dial again.
 			conn.Close()
@@ -217,6 +241,45 @@ func HoldSessionEmulation(ctx context.Context, name string, browserPID int) erro
 			return ctx.Err()
 		}
 	}
+}
+
+// applyHeldEmulation applies e on the holder's connection. With force it
+// first applies a copy with a slightly different scale factor, so Chrome
+// cannot skip the exact spec as a repeat. The width never changes.
+func applyHeldEmulation(ctx context.Context, conn cdpTransport, e *DeviceEmulation, force bool) error {
+	if force {
+		nudged := *e
+		nudged.DeviceScaleFactor = e.Scale() + 0.01
+		if nudged.DeviceScaleFactor > 8 {
+			nudged.DeviceScaleFactor = e.Scale() - 0.01
+		}
+		if err := applyEmulationOnConn(ctx, conn, &nudged); err != nil {
+			return err
+		}
+	}
+	return applyEmulationOnConn(ctx, conn, e)
+}
+
+// pageDevicePixelRatio reads window.devicePixelRatio of the page.
+func pageDevicePixelRatio(ctx context.Context, conn cdpTransport, id int64) (float64, error) {
+	raw, err := cdpCall(ctx, conn, id, "Runtime.evaluate", map[string]any{
+		"expression": "window.devicePixelRatio", "returnByValue": true,
+	})
+	if err != nil {
+		return 0, err
+	}
+	var r struct {
+		Result struct {
+			Value float64 `json:"value"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(raw, &r); err != nil {
+		return 0, err
+	}
+	if r.Result.Value <= 0 {
+		return 0, errors.New("page reported no devicePixelRatio")
+	}
+	return r.Result.Value, nil
 }
 
 // layoutWidth reads the CSS layout viewport width of the page.

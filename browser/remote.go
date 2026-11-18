@@ -604,6 +604,14 @@ func RemoteScreenshotWithCaptureAndWait(ctx context.Context, s *Session, url str
 		actions = append(actions, chromedp.WaitVisible(waitSelector, chromedp.ByQuery))
 	}
 	var buf []byte
+	if holderServes(s) {
+		// The holder owns the override: navigate here, capture on its
+		// connection (see emulation_capture.go).
+		if err := chromedp.Run(tctx, actions...); err != nil {
+			return nil, err
+		}
+		return holderCapture(tctx, s, captureBeyondViewport)
+	}
 	actions = append(actions, chromedp.ActionFunc(func(ctx context.Context) error {
 		data, err := page.CaptureScreenshot().
 			WithCaptureBeyondViewport(captureBeyondViewport).
@@ -925,6 +933,12 @@ func RemoteScreenshotCurrentWithOptions(parent context.Context, s *Session, opts
 			conn.Close()
 			return nil, s.restoreAfterOneShot(parent, opts.Emulation, err)
 		}
+	}
+	if opts.Emulation == nil && holderServes(s) {
+		// The holder owns the override: capture on its connection (see
+		// emulation_capture.go). This connection only navigated or waited.
+		conn.Close()
+		return holderCapture(ctx, s, opts.CaptureBeyondViewport)
 	}
 	png, err := screenshotCurrentOnTransportWithTimeout(ctx, conn, opts.CaptureBeyondViewport, timeout)
 	if opts.Emulation != nil {
