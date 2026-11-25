@@ -228,6 +228,17 @@ func chromeLaunchArgs(o OpenOptions, runtimeKind RuntimeKind, profileDir string)
 		"--no-first-run",
 		"--no-default-browser-check",
 		"--disable-notifications",
+		"--disable-background-networking",
+		"--disable-component-update",
+		"--disable-sync",
+		"--disable-default-apps",
+		"--disable-domain-reliability",
+		"--disable-client-side-phishing-detection",
+		"--disable-breakpad",
+		"--no-pings",
+		"--metrics-recording-only",
+		"--password-store=basic",
+		"--use-mock-keychain",
 		"--disable-features=Translate,InfinitePrerendering",
 	}
 	if o.Headful && o.HeadfulOffscreen {
@@ -246,6 +257,8 @@ func chromeLaunchArgs(o OpenOptions, runtimeKind RuntimeKind, profileDir string)
 			fmt.Sprintf("--disable-extensions-except=%s", o.ExtensionPath),
 			fmt.Sprintf("--load-extension=%s", o.ExtensionPath),
 		)
+	} else {
+		args = append(args, "--disable-extensions")
 	}
 	args = append(args, "about:blank")
 	return args

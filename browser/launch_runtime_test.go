@@ -126,3 +126,34 @@ func TestReadExtensionTargetsBoundsTargetListResponse(t *testing.T) {
 		t.Fatalf("oversized response error = %v", err)
 	}
 }
+
+func TestChromeLaunchArgsMinimizeBackgroundOverhead(t *testing.T) {
+	args := chromeLaunchArgs(OpenOptions{Viewport: Viewport{Width: 1280, Height: 720}}, RuntimeHeadlessShell, "/tmp/p")
+	joined := strings.Join(args, " ")
+	for _, flag := range []string{
+		"--disable-background-networking",
+		"--disable-component-update",
+		"--disable-sync",
+		"--disable-default-apps",
+		"--disable-domain-reliability",
+		"--disable-breakpad",
+		"--no-pings",
+		"--metrics-recording-only",
+		"--password-store=basic",
+		"--use-mock-keychain",
+		"--disable-extensions",
+	} {
+		if !strings.Contains(joined, flag) {
+			t.Fatalf("missing launch hygiene flag %q in %v", flag, args)
+		}
+	}
+	if strings.Contains(joined, "--headless=new") {
+		t.Fatalf("headless-shell must not receive --headless=new: %v", args)
+	}
+	extArgs := chromeLaunchArgs(OpenOptions{Viewport: Viewport{Width: 1280, Height: 720}, ExtensionPath: "/tmp/ext"}, RuntimeChromeForTesting, "/tmp/p")
+	for _, a := range extArgs {
+		if a == "--disable-extensions" {
+			t.Fatalf("extension launch must not pass bare --disable-extensions: %v", extArgs)
+		}
+	}
+}
