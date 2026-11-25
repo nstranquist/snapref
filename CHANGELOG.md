@@ -5,6 +5,18 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ## Unreleased
 
+## 0.2.4 - 2026-11-24
+
+### Changed
+
+- Added Chromium launch hygiene flags (`--disable-background-networking`,
+  `--disable-component-update`, `--disable-sync`, `--disable-default-apps`,
+  `--disable-domain-reliability`, `--disable-client-side-phishing-detection`,
+  `--disable-breakpad`, `--no-pings`, `--metrics-recording-only`,
+  `--password-store=basic`, `--use-mock-keychain`, and `--disable-extensions`
+  when no extension is loaded) to cut background CPU, RAM, disk, and macOS
+  Keychain overhead on managed headless sessions.
+
 ## 0.2.3 - 2026-11-18
 
 ### Fixed

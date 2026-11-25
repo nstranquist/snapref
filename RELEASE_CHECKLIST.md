@@ -1,7 +1,7 @@
 # Release checklist
 
 Public source is at https://github.com/nstranquist/snapref. The current
-tag is `v0.2.3` (2026-11-18). Complete the remaining items before a signed 1.0.
+tag is `v0.2.4` (2026-11-24). Complete the remaining items before a signed 1.0.
 
 - [x] Clear the public name and module path with the repository owner. Public name is SnapRef; module path is `github.com/nstranquist/snapref`.
 - [x] Run `make verify-release` from a clean standalone checkout.
@@ -17,10 +17,10 @@ tag is `v0.2.3` (2026-11-18). Complete the remaining items before a signed 1.0.
 - [x] Review `NOTICE`, `THIRD_PARTY_NOTICES.md`, every bundled license text,
   and the managed-browser terms.
 - [x] Confirm that `VERSION`, `package.json`, the CLI version, the intended tag,
-  and `CHANGELOG.md` agree (`0.2.3` / tag `v0.2.3`).
+  and `CHANGELOG.md` agree (`0.2.4` / tag `v0.2.4`).
 - [x] Verify every entry in `SHA256SUMS` against the final archives (done for
-  `v0.2.0-rc.2`; `v0.2.0`, `v0.2.1`, `v0.2.2` and `v0.2.3` have no published archives yet).
+  `v0.2.0-rc.2`; `v0.2.0`, `v0.2.1`, `v0.2.2`, `v0.2.3` and `v0.2.4` have no published archives yet).
 - [x] Keep Nicos adapters and control-plane code outside this repository.
 - [x] Obtain explicit approval before you create a remote, push, tag, or
-  publish. Public repo, `v0.2.1`, `v0.2.2` and `v0.2.3` tags (unsigned, no GitHub release page) and
+  publish. Public repo, `v0.2.1`, `v0.2.2`, `v0.2.3` and `v0.2.4` tags (unsigned, no GitHub release page) and
   the `v0.2.0-rc.2` unsigned GitHub prerelease exist. GPG-signed artifacts do not.
