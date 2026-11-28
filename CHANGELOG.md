@@ -5,6 +5,28 @@ Versioning plus the schema rules in `docs/VERSIONING.md`.
 
 ## Unreleased
 
+## 0.2.5 - 2026-11-28
+
+### Added
+
+- `DeviceEmulation.ColorScheme` (`light` or `dark`) emulates
+  `prefers-color-scheme` with the session size. It persists, the viewport
+  holder keeps it between calls and repairs a foreign media override, and a
+  one-shot capture size keeps the session's scheme unless it names its own.
+- `LaunchOptions.ColorScheme` sets the scheme for stateless screenshot, eval
+  and fetch before the page loads.
+
+### Changed
+
+- Every eval path awaits a returned Promise and returns the value by value:
+  `Eval`, `RemoteEval`, `EvaluateOn` (script and MCP eval) and `EvalInTarget`.
+  `EvalAwait`, `EvalPromise` and `EvalPromiseInTarget` stay as aliases.
+
+### Fixed
+
+- A full-page `screenshot-current` of a scrolled page starts at the top, so
+  sticky and fixed elements draw in place, then restores the scroll position.
+
 ## 0.2.4 - 2026-11-24
 
 ### Changed
