@@ -19,14 +19,6 @@ type SelectOptionError struct{ Cause error }
 func (e *SelectOptionError) Error() string { return "select option: " + e.Cause.Error() }
 func (e *SelectOptionError) Unwrap() error { return e.Cause }
 
-func evaluationError(err error) error {
-	var exception *runtime.ExceptionDetails
-	if errors.As(err, &exception) {
-		return &JavaScriptEvalError{Cause: err}
-	}
-	return err
-}
-
 func selectionError(err error) error {
 	var exception *runtime.ExceptionDetails
 	if errors.As(err, &exception) {

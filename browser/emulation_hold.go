@@ -16,7 +16,8 @@ import (
 	"time"
 )
 
-// Holding a viewport between calls (WORK-1320).
+// Holding a viewport between calls (WORK-1320). The colour scheme is part of
+// the same spec, so the holder keeps it applied as well.
 //
 // Chrome keeps an Emulation.* override only while the DevTools session that
 // set it stays open, and closing any session that set an override clears the
@@ -209,6 +210,14 @@ func HoldSessionEmulation(ctx context.Context, name string, browserPID int) erro
 			if dpr, err = pageDevicePixelRatio(cctx, conn, next()); err == nil {
 				drifted = math.Abs(dpr-s.Emulation.Scale()) > 0.001
 			}
+			// Closing another session that set media clears the colour scheme
+			// and leaves the width alone.
+			if err == nil && !drifted && s.Emulation.ColorScheme != "" {
+				var matches bool
+				if matches, err = pageMatchesColorScheme(cctx, conn, next(), s.Emulation.ColorScheme); err == nil {
+					drifted = !matches
+				}
+			}
 		}
 		if err == nil && (spec != applied || s.EmulationRequest != appliedReq || width != baseline || drifted) {
 			// Chrome ignores a repeat of the override this connection set
@@ -244,8 +253,9 @@ func HoldSessionEmulation(ctx context.Context, name string, browserPID int) erro
 }
 
 // applyHeldEmulation applies e on the holder's connection. With force it
-// first applies a copy with a slightly different scale factor, so Chrome
-// cannot skip the exact spec as a repeat. The width never changes.
+// first applies a copy with a slightly different scale factor and no colour
+// scheme, so Chrome cannot skip the exact spec as a repeat. The width never
+// changes.
 func applyHeldEmulation(ctx context.Context, conn cdpTransport, e *DeviceEmulation, force bool) error {
 	if force {
 		nudged := *e
@@ -253,11 +263,36 @@ func applyHeldEmulation(ctx context.Context, conn cdpTransport, e *DeviceEmulati
 		if nudged.DeviceScaleFactor > 8 {
 			nudged.DeviceScaleFactor = e.Scale() - 0.01
 		}
+		nudged.ColorScheme = ""
 		if err := applyEmulationOnConn(ctx, conn, &nudged); err != nil {
 			return err
 		}
 	}
 	return applyEmulationOnConn(ctx, conn, e)
+}
+
+// pageMatchesColorScheme reports whether the page's prefers-color-scheme
+// media query matches scheme.
+func pageMatchesColorScheme(ctx context.Context, conn cdpTransport, id int64, scheme string) (bool, error) {
+	query, err := json.Marshal("(prefers-color-scheme: " + scheme + ")")
+	if err != nil {
+		return false, err
+	}
+	raw, err := cdpCall(ctx, conn, id, "Runtime.evaluate", map[string]any{
+		"expression": "matchMedia(" + string(query) + ").matches", "returnByValue": true,
+	})
+	if err != nil {
+		return false, err
+	}
+	var r struct {
+		Result struct {
+			Value bool `json:"value"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(raw, &r); err != nil {
+		return false, err
+	}
+	return r.Result.Value, nil
 }
 
 // pageDevicePixelRatio reads window.devicePixelRatio of the page.

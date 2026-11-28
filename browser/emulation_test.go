@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chromedp/cdproto"
+	"github.com/go-json-experiment/json/jsontext"
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 )
@@ -32,6 +34,7 @@ type fakeEmulatingChrome struct {
 	layoutWidth int
 	dpr         float64
 	touch       bool
+	colorScheme string     // emulated prefers-color-scheme, "" = none
 	methods     [][]string // per connection, in order
 	badIDs      []int64
 }
@@ -68,10 +71,18 @@ func (f *fakeEmulatingChrome) serve(conn io.ReadWriter) {
 	index := len(f.methods) - 1
 	f.mu.Unlock()
 	var override *DeviceEmulation // this connection's active override
+	setMedia := false             // this connection set a colour scheme
 	for {
 		data, _, err := wsutil.ReadClientData(conn)
 		if err != nil {
-			return // connection closed: Chrome drops this session's override
+			// Connection closed: Chrome drops this session's overrides. Media
+			// features re-evaluate at once.
+			if setMedia {
+				f.mu.Lock()
+				f.colorScheme = ""
+				f.mu.Unlock()
+			}
+			return
 		}
 		var msg struct {
 			ID     int64          `json:"id"`
@@ -103,6 +114,16 @@ func (f *fakeEmulatingChrome) serve(conn io.ReadWriter) {
 			f.layoutWidth, f.dpr = fakeWindowWidth, 1
 		case "Emulation.setTouchEmulationEnabled":
 			f.touch = msg.Params["enabled"].(bool)
+		case "Emulation.setEmulatedMedia":
+			f.colorScheme = ""
+			features, _ := msg.Params["features"].([]any)
+			for _, raw := range features {
+				feature, _ := raw.(map[string]any)
+				if feature["name"] == "prefers-color-scheme" {
+					f.colorScheme, _ = feature["value"].(string)
+				}
+			}
+			setMedia = f.colorScheme != ""
 		case "Page.navigate":
 			if override == nil {
 				f.layoutWidth, f.dpr, f.touch = fakeWindowWidth, 1, false
@@ -120,8 +141,13 @@ func (f *fakeEmulatingChrome) serve(conn io.ReadWriter) {
 		case "Page.getLayoutMetrics":
 			result = fmt.Sprintf(`{"cssVisualViewport":{"pageX":0,"pageY":0,"clientWidth":%d,"clientHeight":800},"cssContentSize":{"x":0,"y":0,"width":%d,"height":800}}`, f.layoutWidth, f.layoutWidth)
 		case "Page.captureScreenshot":
-			// The fake "PNG" encodes the captured CSS width and DPR.
-			result = fmt.Sprintf(`{"data":%q}`, base64Std(fmt.Sprintf("w=%d dpr=%g", f.layoutWidth, f.dpr)))
+			// The fake "PNG" encodes the captured CSS width, DPR and any
+			// colour scheme.
+			shot := fmt.Sprintf("w=%d dpr=%g", f.layoutWidth, f.dpr)
+			if f.colorScheme != "" {
+				shot += " " + f.colorScheme
+			}
+			result = fmt.Sprintf(`{"data":%q}`, base64Std(shot))
 		}
 		f.mu.Unlock()
 		if err := wsutil.WriteServerText(conn, []byte(fmt.Sprintf(`{"id":%d,"result":%s}`, msg.ID, result))); err != nil {
@@ -256,8 +282,109 @@ func TestDeviceEmulationValidateAndString(t *testing.T) {
 	if got := (DeviceEmulation{Width: 1280, Height: 800}).String(); got != "1280x800" {
 		t.Fatalf("String() = %q", got)
 	}
+	if got := (DeviceEmulation{Width: 1280, Height: 800, ColorScheme: ColorSchemeDark}).String(); got != "1280x800 dark" {
+		t.Fatalf("String() = %q", got)
+	}
+	if err := (DeviceEmulation{Width: 10, Height: 10, ColorScheme: "blue"}).Validate(); err == nil {
+		t.Fatal(`Validate(color scheme "blue") = nil, want error`)
+	}
 	if emulationCallIDBase+1000 > math.MaxInt32 || waitCallIDBase+1_000_000 > math.MaxInt32 {
 		t.Fatal("reserved CDP id ranges must stay below 2^31: Chrome drops the connection otherwise")
+	}
+}
+
+// The colour scheme is part of the session spec. Each
+// connection re-applies it, a one-shot size keeps it unless it names its own,
+// and reset clears it.
+func TestColorSchemePersistsWithTheSessionSpec(t *testing.T) {
+	fake, sess := newFakeEmulatingChrome(t)
+	ctx := context.Background()
+	dark := &DeviceEmulation{Width: 390, Height: 844, ColorScheme: ColorSchemeDark}
+	if err := RemoteSetDeviceEmulation(ctx, sess, dark, 5*time.Second); err != nil {
+		t.Fatalf("set viewport: %v", err)
+	}
+	if err := RemoteNavigate(ctx, sess, "http://127.0.0.1/page", 5*time.Second); err != nil {
+		t.Fatalf("navigate: %v", err)
+	}
+	shot := func(opts ScreenshotCurrentOptions) string {
+		t.Helper()
+		opts.Timeout = 5 * time.Second
+		png, err := RemoteScreenshotCurrentWithOptions(ctx, sess, opts)
+		if err != nil {
+			t.Fatalf("screenshot-current: %v", err)
+		}
+		return string(png)
+	}
+	if got := shot(ScreenshotCurrentOptions{}); got != "w=390 dpr=1 dark" {
+		t.Fatalf("session capture = %q, want w=390 dpr=1 dark", got)
+	}
+	if got := shot(ScreenshotCurrentOptions{Emulation: &DeviceEmulation{Width: 1280, Height: 800}}); got != "w=1280 dpr=1 dark" {
+		t.Fatalf("one-shot size = %q, want the session's dark scheme", got)
+	}
+	if got := shot(ScreenshotCurrentOptions{Emulation: &DeviceEmulation{Width: 1280, Height: 800, ColorScheme: ColorSchemeLight}}); got != "w=1280 dpr=1 light" {
+		t.Fatalf("one-shot light = %q", got)
+	}
+	if sess.Emulation == nil || *sess.Emulation != *dark {
+		t.Fatalf("one-shot changed the persisted spec: %+v", sess.Emulation)
+	}
+	if err := RemoteSetDeviceEmulation(ctx, sess, nil, 5*time.Second); err != nil {
+		t.Fatalf("reset viewport: %v", err)
+	}
+	calls := fake.lastConnection()
+	if len(calls) == 0 || calls[len(calls)-1] != "Emulation.setEmulatedMedia" {
+		t.Fatalf("reset did not clear the media override: %v", calls)
+	}
+	if got := shot(ScreenshotCurrentOptions{}); got != "w=1440 dpr=1" {
+		t.Fatalf("capture after reset = %q, want the window and no scheme", got)
+	}
+}
+
+// recordingTransport keeps each CDP method with its params. It answers with
+// respond's result, or an empty result.
+type recordingTransport struct {
+	last    *cdproto.Message
+	calls   []recordedCall
+	respond func(call recordedCall) string
+}
+
+type recordedCall struct {
+	Method string
+	Params string
+}
+
+func (r *recordingTransport) Write(_ context.Context, m *cdproto.Message) error {
+	r.last = m
+	r.calls = append(r.calls, recordedCall{Method: string(m.Method), Params: string(m.Params)})
+	return nil
+}
+
+func (r *recordingTransport) Read(_ context.Context, m *cdproto.Message) error {
+	m.ID = r.last.ID
+	m.Result = jsontext.Value(`{}`)
+	if r.respond != nil {
+		if result := r.respond(r.calls[len(r.calls)-1]); result != "" {
+			m.Result = jsontext.Value(result)
+		}
+	}
+	return nil
+}
+
+// A forced re-apply (the same spec after a drift) must change the media
+// feature first, so Chrome cannot skip it as a repeat.
+func TestHeldEmulationForceNudgesColorScheme(t *testing.T) {
+	conn := &recordingTransport{}
+	dark := &DeviceEmulation{Width: 390, Height: 844, ColorScheme: ColorSchemeDark}
+	if err := applyHeldEmulation(context.Background(), conn, dark, true); err != nil {
+		t.Fatal(err)
+	}
+	var media []string
+	for _, call := range conn.calls {
+		if call.Method == "Emulation.setEmulatedMedia" {
+			media = append(media, call.Params)
+		}
+	}
+	if len(media) != 2 || strings.Contains(media[0], "dark") || !strings.Contains(media[1], `"value":"dark"`) {
+		t.Fatalf("media calls = %v, want a cleared feature and then dark", media)
 	}
 }
 
@@ -557,5 +684,230 @@ matchMedia("(max-width: 760px)").addEventListener("change", e => hits.push(e.mat
 	}
 	if w, _ := plainWidth(t, cleared); w <= 760 {
 		t.Fatalf("after clear: width %d, want the desktop window", w)
+	}
+}
+
+// plainColorScheme reads prefers-color-scheme and the recorded flips over a
+// connection that applies no emulation: the page's state between calls.
+func plainColorScheme(t *testing.T, s *Session) (dark bool, flips []bool) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := dialFirstPageNoEmulation(ctx, s)
+	if err != nil {
+		t.Fatalf("plain dial: %v", err)
+	}
+	defer conn.Close()
+	raw, err := cdpCall(ctx, conn, 1, "Runtime.evaluate", map[string]any{
+		"expression":    `JSON.stringify({dark: matchMedia("(prefers-color-scheme: dark)").matches, flips: window.flips || []})`,
+		"returnByValue": true,
+	})
+	if err != nil {
+		t.Fatalf("plain eval: %v", err)
+	}
+	var r struct {
+		Result struct {
+			Value string `json:"value"`
+		} `json:"result"`
+	}
+	var v struct {
+		Dark  bool   `json:"dark"`
+		Flips []bool `json:"flips"`
+	}
+	if err := json.Unmarshal(raw, &r); err != nil || json.Unmarshal([]byte(r.Result.Value), &v) != nil {
+		t.Fatalf("plain eval decode: %s", raw)
+	}
+	return v.Dark, v.Flips
+}
+
+// pngLuma returns the brightness (0-255) of one pixel of a PNG.
+func pngLuma(t *testing.T, data []byte, x, y int) int {
+	t.Helper()
+	img, err := png.Decode(bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("decode PNG: %v", err)
+	}
+	r, g, b, _ := img.At(x, y).RGBA()
+	return int((r + g + b) / 3 >> 8)
+}
+
+// Real Chrome: the colour scheme holds between calls like the
+// size, a one-shot size keeps it, a one-shot scheme ends with its capture,
+// and the holder repairs a scheme that another client cleared.
+func TestColorSchemeHoldsBetweenCallsRealChrome(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping browser integration test in -short mode")
+	}
+	requireManagedChromeForTesting(t)
+	fixture := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = io.WriteString(w, `<!doctype html><html><head><meta name="viewport" content="width=device-width">
+<style>html,body{margin:0;height:100%;background:#fff} @media (prefers-color-scheme: dark){html,body{background:#000}}</style></head>
+<body><main>scheme fixture</main><script>window.flips = [];
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e => flips.push(e.matches));</script></body></html>`)
+	}))
+	defer fixture.Close()
+
+	holdCtx, stopHolders := context.WithCancel(context.Background())
+	held := make(chan error, 4)
+	prev := EmulationHolderLauncher
+	EmulationHolderLauncher = func(name string, pid int) error {
+		go func() { held <- HoldSessionEmulation(holdCtx, name, pid) }()
+		return nil
+	}
+	defer func() { stopHolders(); EmulationHolderLauncher = prev }()
+
+	const name = "color-scheme-hold-e2e"
+	sess, err := Open(OpenOptions{Name: name, Runtime: RuntimeChromeForTesting, ReadyTimeout: 30 * time.Second})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer Close(name, true)
+	ctx := context.Background()
+	if err := RemoteNavigate(ctx, sess, fixture.URL, 30*time.Second); err != nil {
+		t.Fatalf("navigate: %v", err)
+	}
+	// Chrome starts in the host's appearance. Hold the other scheme, so the
+	// test sees a real change on a light or a dark host.
+	startDark, _ := plainColorScheme(t, sess)
+	heldDark := !startDark
+	heldScheme, other := ColorSchemeDark, ColorSchemeLight
+	if !heldDark {
+		heldScheme, other = other, heldScheme
+	}
+	spec := &DeviceEmulation{Width: 1280, Height: 800, ColorScheme: heldScheme}
+	if err := RemoteSetDeviceEmulation(ctx, sess, spec, 10*time.Second); err != nil {
+		t.Fatalf("set viewport: %v", err)
+	}
+	for i := 0; i < 3; i++ {
+		s, err := LoadSession(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var matches bool
+		if err := RemoteEval(ctx, s, "", `matchMedia("(prefers-color-scheme: `+heldScheme+`)").matches`, &matches, 10*time.Second); err != nil || !matches {
+			t.Fatalf("call %d: %s %v, err %v", i, heldScheme, matches, err)
+		}
+		if isDark, flips := plainColorScheme(t, s); isDark != heldDark || len(flips) != 1 || flips[0] != heldDark {
+			t.Fatalf("between calls after call %d: dark %v, flips %v; want %v and [%v]", i, isDark, flips, heldDark, heldDark)
+		}
+	}
+
+	s, _ := LoadSession(name)
+	capture := func(opts ScreenshotCurrentOptions) []byte {
+		t.Helper()
+		opts.Timeout = 20 * time.Second
+		png, err := RemoteScreenshotCurrentWithOptions(ctx, s, opts)
+		if err != nil {
+			t.Fatalf("screenshot-current %+v: %v", opts.Emulation, err)
+		}
+		return png
+	}
+	waitHeld := func(step string) {
+		t.Helper()
+		deadline := time.Now().Add(3 * time.Second)
+		for {
+			if isDark, _ := plainColorScheme(t, s); isDark == heldDark {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("after %s: the page is not %s again", step, heldScheme)
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+	// The fixture is black in dark and white in light.
+	wantScheme := func(step string, png []byte, scheme string) {
+		t.Helper()
+		luma := pngLuma(t, png, 5, 5)
+		if scheme == ColorSchemeDark && luma > 40 || scheme == ColorSchemeLight && luma < 215 {
+			t.Fatalf("%s: luma %d, want a %s page", step, luma, scheme)
+		}
+	}
+	wantScheme("held capture", capture(ScreenshotCurrentOptions{}), heldScheme)
+	wantScheme("one-shot size", capture(ScreenshotCurrentOptions{Emulation: &DeviceEmulation{Width: 390, Height: 844}}), heldScheme)
+	waitHeld("a one-shot size")
+	wantScheme("one-shot "+other, capture(ScreenshotCurrentOptions{Emulation: &DeviceEmulation{Width: 390, Height: 844, ColorScheme: other}}), other)
+	waitHeld("a one-shot " + other + " capture")
+
+	// Another client that sets and drops a media override clears the page's
+	// colour scheme; the holder sees it and applies the held scheme again.
+	func() {
+		fctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+		conn, err := dialFirstPageNoEmulation(fctx, s)
+		if err != nil {
+			t.Fatalf("foreign dial: %v", err)
+		}
+		defer conn.Close()
+		if _, err := cdpCall(fctx, conn, 1, "Emulation.setEmulatedMedia", mediaParams(other)); err != nil {
+			t.Fatalf("foreign media: %v", err)
+		}
+	}()
+	waitHeld("a foreign media override")
+
+	if err := RemoteSetDeviceEmulation(ctx, s, nil, 10*time.Second); err != nil {
+		t.Fatalf("clear viewport: %v", err)
+	}
+	select {
+	case err := <-held:
+		if err != nil {
+			t.Fatalf("holder: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("holder still running after clear")
+	}
+	if isDark, _ := plainColorScheme(t, s); isDark != startDark {
+		t.Fatalf("after clear: the page is still %s", heldScheme)
+	}
+}
+
+func TestLaunchColorSchemeIsValidatedBeforeLaunch(t *testing.T) {
+	opts := DefaultLaunch()
+	opts.ColorScheme = "sepia"
+	if _, err := opts.normalize(); err == nil || !strings.Contains(err.Error(), `color scheme "sepia"`) {
+		t.Fatalf("normalize error = %v, want the color scheme rejected", err)
+	}
+	if got := launchNavigate(LaunchOptions{}, "about:blank"); len(got) != 2 {
+		t.Fatalf("no scheme: %d actions, want navigate + body wait only", len(got))
+	}
+	if got := launchNavigate(LaunchOptions{ColorScheme: ColorSchemeDark}, "about:blank"); len(got) != 3 {
+		t.Fatalf("dark: %d actions, want media + navigate + body wait", len(got))
+	}
+}
+
+func TestStatelessColorSchemeRealChrome(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping browser integration test in -short mode")
+	}
+	requireManagedChromeForTesting(t)
+	fixture := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = io.WriteString(w, `<!doctype html><html><head><style>html,body{margin:0;background:#fff}
+@media (prefers-color-scheme: dark){html,body{background:#000}}</style></head>
+<body><script>window.firstPaintDark = matchMedia("(prefers-color-scheme: dark)").matches;</script></body></html>`)
+	}))
+	defer fixture.Close()
+
+	for _, scheme := range []string{ColorSchemeDark, ColorSchemeLight} {
+		opts := DefaultLaunch()
+		opts.Runtime = RuntimeChromeForTesting
+		opts.Viewport = Viewport{Width: 400, Height: 300}
+		opts.ColorScheme = scheme
+		var dark bool
+		if err := Eval(context.Background(), opts, fixture.URL, `window.firstPaintDark`, &dark); err != nil {
+			t.Fatalf("%s eval: %v", scheme, err)
+		}
+		if dark != (scheme == ColorSchemeDark) {
+			t.Fatalf("%s: the page script saw dark=%v before first paint", scheme, dark)
+		}
+		png, err := Screenshot(context.Background(), opts, fixture.URL)
+		if err != nil {
+			t.Fatalf("%s screenshot: %v", scheme, err)
+		}
+		luma := pngLuma(t, png, 10, 10)
+		if scheme == ColorSchemeDark && luma > 40 || scheme == ColorSchemeLight && luma < 215 {
+			t.Fatalf("%s: background luma %d", scheme, luma)
+		}
 	}
 }

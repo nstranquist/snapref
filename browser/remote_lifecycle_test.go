@@ -85,7 +85,8 @@ func TestRemoteContextReleasesConnectionsAndPreservesPage(t *testing.T) {
 				result = `{"root":{"nodeId":1,"backendNodeId":1,"nodeType":9,"nodeName":"#document","localName":"","nodeValue":""}}`
 			case "Runtime.evaluate":
 				result = `{"result":{"type":"boolean","value":false}}`
-				if msg.Params["expression"] == "42" {
+				// Script eval awaits a returned Promise (and returns by value).
+				if msg.Params["expression"] == "42" && msg.Params["awaitPromise"] == true && msg.Params["returnByValue"] == true {
 					result = `{"result":{"type":"number","value":42}}`
 				}
 			case "Target.closeTarget", "Browser.close":
@@ -169,7 +170,7 @@ func TestRawTargetRejectsForeignWebSocket(t *testing.T) {
 	_, port, _ := net.SplitHostPort(strings.TrimPrefix(server.URL, "http://"))
 	p, _ := strconv.Atoi(port)
 	var result any
-	err := rawEvalIntoTarget(context.Background(), &Session{Port: p}, "service_worker", "chrome-extension://review/", "42", false, &result, time.Second)
+	err := rawEvalIntoTarget(context.Background(), &Session{Port: p}, "service_worker", "chrome-extension://review/", "42", &result, time.Second)
 	if err == nil || !strings.Contains(err.Error(), "invalid target websocket") {
 		t.Fatalf("foreign endpoint was not rejected: %v", err)
 	}
@@ -187,7 +188,7 @@ func TestRawDiscoveryPreservesDeadlineError(t *testing.T) {
 			defer cancel()
 			var err error
 			if worker {
-				err = rawEvalIntoTarget(ctx, s, "service_worker", "", "42", false, nil, time.Second)
+				err = rawEvalIntoTarget(ctx, s, "service_worker", "", "42", nil, time.Second)
 			} else {
 				_, err = dialFirstPage(ctx, s)
 			}

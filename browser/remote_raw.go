@@ -101,9 +101,9 @@ func cdpCall(ctx context.Context, t cdpTransport, id int64, method string, param
 }
 
 // rawEvalValue runs a JS expression in the session's page (navigating first when
-// url is non-empty) and returns the JSON value of the result. await resolves a
-// returned Promise. Mirrors the chromedp Evaluate/EvalPromise contract.
-func rawEvalValue(ctx context.Context, s *Session, url, js string, await bool, timeout time.Duration) (json.RawMessage, error) {
+// url is non-empty) and returns the JSON value of the result. A returned
+// Promise is awaited.
+func rawEvalValue(ctx context.Context, s *Session, url, js string, timeout time.Duration) (json.RawMessage, error) {
 	if timeout == 0 {
 		timeout = 30 * time.Second
 	}
@@ -127,7 +127,7 @@ func rawEvalValue(ctx context.Context, s *Session, url, js string, await bool, t
 	res, err := cdpCall(cctx, conn, next(), "Runtime.evaluate", map[string]any{
 		"expression":    js,
 		"returnByValue": true,
-		"awaitPromise":  await,
+		"awaitPromise":  true,
 		"userGesture":   true,
 	})
 	if err != nil {
@@ -158,13 +158,13 @@ func rawEvalValue(ctx context.Context, s *Session, url, js string, await bool, t
 }
 
 // rawEvalInto runs rawEvalValue and decodes the JSON value into out.
-func rawEvalInto(ctx context.Context, s *Session, url, js string, await bool, out any, timeout time.Duration) error {
-	val, err := rawEvalValue(ctx, s, url, js, await, timeout)
+func rawEvalInto(ctx context.Context, s *Session, url, js string, out any, timeout time.Duration) error {
+	val, err := rawEvalValue(ctx, s, url, js, timeout)
 	if err != nil {
 		return err
 	}
 	if out == nil || len(val) == 0 {
-		return nil // no value (e.g. a Promise without --await) — leave out at zero
+		return nil // no value (undefined) — leave out at zero
 	}
 	return json.Unmarshal(val, out)
 }
@@ -172,7 +172,7 @@ func rawEvalInto(ctx context.Context, s *Session, url, js string, await bool, ou
 // rawEvalIntoTarget evaluates against an existing target selected by type and
 // URL prefix through its own websocket. Releasing this connection preserves
 // extension pages and service workers across multiple acceptance steps.
-func rawEvalIntoTarget(ctx context.Context, s *Session, targetType, targetURLPrefix, js string, await bool, out any, timeout time.Duration) error {
+func rawEvalIntoTarget(ctx context.Context, s *Session, targetType, targetURLPrefix, js string, out any, timeout time.Duration) error {
 	if err := checkSessionForegroundPolicy(s); err != nil {
 		return err
 	}
@@ -212,7 +212,7 @@ func rawEvalIntoTarget(ctx context.Context, s *Session, targetType, targetURLPre
 	defer conn.Close()
 
 	res, err := cdpCall(cctx, conn, 1, "Runtime.evaluate", map[string]any{
-		"expression": js, "returnByValue": true, "awaitPromise": await, "userGesture": true,
+		"expression": js, "returnByValue": true, "awaitPromise": true, "userGesture": true,
 	})
 	if err != nil {
 		return err

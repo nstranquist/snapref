@@ -57,3 +57,14 @@ closes or is replaced, or the browser exits. A host registers
 `EmulationHolderLauncher` (usually `DetachedHolderLauncher`) and routes the
 hidden `__hold-viewport` subcommand to `RunHoldViewport`. Without a launcher,
 each connection re-applies the override for its own lifetime only.
+
+The spec's optional colour scheme (`prefers-color-scheme` light or dark) is
+part of the same override and the same holder. The holder checks the page's
+media match as well as its size, so a client that sets and drops its own
+media override is repaired like a size change. A one-shot capture size keeps
+the session's scheme unless it names its own. Stateless launches take
+`LaunchOptions.ColorScheme` and set it before the page loads.
+
+Every eval path awaits a returned Promise and returns the value by value.
+A full-page capture scrolls the page to the top first, so sticky and fixed
+elements render where they belong, and then restores the scroll position.

@@ -15,16 +15,13 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
-// EvalPromise is like RemoteEval but awaits a returned Promise. Required
-// when the JS calls `chrome.runtime.sendMessage`-style callback APIs that
-// we wrap in `new Promise(...)`.
+// EvalPromise is RemoteEval with a 30s default timeout. RemoteEval awaits a
+// returned Promise as well; the name stays for existing callers.
 func EvalPromise(ctx context.Context, s *Session, url, js string, out any, timeout time.Duration) error {
 	if timeout == 0 {
 		timeout = 30 * time.Second
 	}
-	// Raw CDP with awaitPromise (see remote_raw.go) so the session's page target
-	// survives across exec calls — and a returned Promise resolves to its value.
-	return rawEvalInto(ctx, s, url, js, true, out, timeout)
+	return RemoteEval(ctx, s, url, js, out, timeout)
 }
 
 // EvalInNewTab opens a fresh tab at url through Chrome's remote debugging
@@ -143,15 +140,13 @@ func EvalInExtensionSW(ctx context.Context, s *Session, js string, out any, time
 		return fmt.Errorf("session %q has no recorded ExtensionID", s.Name)
 	}
 	prefix := "chrome-extension://" + s.ExtensionID + "/"
-	return rawEvalIntoTarget(ctx, s, "service_worker", prefix, js, true, out, timeout)
+	return rawEvalIntoTarget(ctx, s, "service_worker", prefix, js, out, timeout)
 }
 
-// EvalPromiseInTarget evaluates promise-returning js inside the first CDP
-// target whose URL starts with targetURLPrefix. Use this for extension
-// pages such as the action popup where the test needs DOM events and async
-// chrome.runtime responses from that exact page target.
+// EvalPromiseInTarget is EvalInTarget, which awaits a returned Promise as
+// well; the name stays for existing callers.
 func EvalPromiseInTarget(ctx context.Context, s *Session, targetURLPrefix string, js string, out any, timeout time.Duration) error {
-	return rawEvalIntoTarget(ctx, s, "", targetURLPrefix, js, true, out, timeout)
+	return EvalInTarget(ctx, s, targetURLPrefix, js, out, timeout)
 }
 
 func runEvalPromise(ctx context.Context, js string, out any) error {

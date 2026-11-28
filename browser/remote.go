@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -529,11 +530,15 @@ func TextOn(parent context.Context, taskCtx context.Context, selector string, ti
 	return text, err
 }
 
-// EvaluateOn evaluates js in the given chromedp tab context. See the
-// NavigateOn docs for why we don't WithTimeout the tab context.
+// EvaluateOn evaluates js in the given chromedp tab context and awaits a
+// returned Promise. See the NavigateOn docs for why we don't WithTimeout the
+// tab context.
 func EvaluateOn(parent context.Context, taskCtx context.Context, js string, out any, timeout time.Duration) error {
 	return runWithTimeout(parent, taskCtx, timeout, func(ctx context.Context) error {
-		return evaluationError(chromedp.Run(ctx, chromedp.Evaluate(js, out)))
+		// chromedp.Run attaches the tab's executor that runtime.Evaluate needs.
+		return chromedp.Run(ctx, chromedp.ActionFunc(func(ctx context.Context) error {
+			return runEvalPromise(ctx, js, out)
+		}))
 	})
 }
 
@@ -630,14 +635,16 @@ func RemoteScreenshotWithCaptureAndWait(ctx context.Context, s *Session, url str
 }
 
 // RemoteEval evaluates a JS expression in the session's first tab,
-// navigating first if url is non-empty.
+// navigating first if url is non-empty. A returned Promise is awaited, so an
+// async expression gives its resolved value; to start work without waiting
+// for it, return something else (`void p`).
 func RemoteEval(ctx context.Context, s *Session, url, js string, out any, timeout time.Duration) error {
 	if timeout == 0 {
 		timeout = 60 * time.Second
 	}
 	// Raw CDP (not chromedp) so the session's page target survives this call —
 	// see remote_raw.go. The chromedp path intermittently closed the tab on exit.
-	return rawEvalInto(ctx, s, url, js, false, out, timeout)
+	return rawEvalInto(ctx, s, url, js, out, timeout)
 }
 
 // RemoteNavigate navigates the session's first tab and waits for body. Raw CDP
@@ -864,6 +871,42 @@ const screenshotPresentedFrameJS = `new Promise(resolve => {
   }
 })`
 
+// screenshotScrollTopJS scrolls the window to the top and returns the old
+// position. "instant" overrides a page's scroll-behavior: smooth.
+const screenshotScrollTopJS = `(() => {
+  const x = window.scrollX, y = window.scrollY;
+  if (x || y) window.scrollTo({left: 0, top: 0, behavior: "instant"});
+  return [x, y];
+})()`
+
+// scrollPageToTop scrolls the window to the top for a full page capture. ok
+// is true only when the page was scrolled, so there is a position to restore.
+func scrollPageToTop(ctx context.Context, conn cdpTransport, id int64) (x, y float64, ok bool) {
+	raw, err := cdpCall(ctx, conn, id, "Runtime.evaluate", map[string]any{
+		"expression": screenshotScrollTopJS, "returnByValue": true,
+	})
+	if err != nil {
+		return 0, 0, false
+	}
+	var r struct {
+		Result struct {
+			Value []float64 `json:"value"`
+		} `json:"result"`
+	}
+	if json.Unmarshal(raw, &r) != nil || len(r.Result.Value) != 2 {
+		return 0, 0, false
+	}
+	x, y = r.Result.Value[0], r.Result.Value[1]
+	return x, y, x != 0 || y != 0
+}
+
+// restorePageScroll puts the window back where scrollPageToTop found it.
+func restorePageScroll(ctx context.Context, conn cdpTransport, id int64, x, y float64) {
+	js := fmt.Sprintf(`window.scrollTo({left: %s, top: %s, behavior: "instant"})`,
+		strconv.FormatFloat(x, 'f', -1, 64), strconv.FormatFloat(y, 'f', -1, 64))
+	_, _ = cdpCall(ctx, conn, id, "Runtime.evaluate", map[string]any{"expression": js})
+}
+
 // RemoteScreenshotCurrentWithTimeout captures the current page state with a
 // hard timeout around the raw CDP screenshot call. Some Chrome builds can leave
 // Page.captureScreenshot waiting indefinitely; on timeout we close the raw
@@ -905,6 +948,13 @@ func RemoteScreenshotCurrentWithOptions(parent context.Context, s *Session, opts
 	if opts.Emulation != nil {
 		if err := opts.Emulation.Validate(); err != nil {
 			return nil, err
+		}
+		if opts.Emulation.ColorScheme == "" && s.Emulation != nil && s.Emulation.ColorScheme != "" {
+			// A one-shot size keeps the session's colour scheme unless it
+			// names its own.
+			oneShot := *opts.Emulation
+			oneShot.ColorScheme = s.Emulation.ColorScheme
+			opts.Emulation = &oneShot
 		}
 	}
 	ctx, cancel := context.WithTimeout(parent, timeout)
@@ -1000,6 +1050,15 @@ func captureCurrentScreenshot(ctx context.Context, conn cdpTransport, captureBey
 
 	var id int64
 	next := func() int64 { id++; return id }
+
+	if captureBeyondViewport {
+		// Sticky and fixed elements render at the current scroll position, so
+		// a full page shot of a scrolled page puts them mid-image. Capture
+		// from the top, then give the page its scroll position back.
+		if x, y, ok := scrollPageToTop(ctx, conn, next()); ok {
+			defer restorePageScroll(ctx, conn, next(), x, y)
+		}
+	}
 
 	// Give DOM mutations a compositing opportunity without activating a tab or
 	// an OS window. The bounded two-rAF wait also tolerates throttled pages.
@@ -1152,8 +1211,8 @@ func RemoteSaveScreenshotCurrentWithOptions(ctx context.Context, s *Session, pat
 }
 
 // EvalInTarget evaluates js inside a specific CDP target (e.g. an
-// extension service worker). Used by Slice D's web-companion e2e to
-// drive the extension without going through a popup.
+// extension service worker) and awaits a returned Promise. Used by Slice D's
+// web-companion e2e to drive the extension without going through a popup.
 func EvalInTarget(ctx context.Context, s *Session, targetURLPrefix string, js string, out any, timeout time.Duration) error {
-	return rawEvalIntoTarget(ctx, s, "", targetURLPrefix, js, false, out, timeout)
+	return rawEvalIntoTarget(ctx, s, "", targetURLPrefix, js, out, timeout)
 }

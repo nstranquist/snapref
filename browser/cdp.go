@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 )
@@ -22,6 +23,7 @@ type LaunchOptions struct {
 	Timeout         time.Duration // hard deadline for the whole op (default 60s)
 	UserAgent       string
 	Viewport        Viewport
+	ColorScheme     string // prefers-color-scheme: "" (page default), light or dark
 	resolvedRuntime ResolvedRuntime
 	runtimeUnlock   func()
 }
@@ -44,6 +46,9 @@ func DefaultLaunch() LaunchOptions {
 func (o *LaunchOptions) normalize() (LaunchOptions, error) {
 	out := *o
 	out.runtimeUnlock = nil
+	if err := validColorScheme(out.ColorScheme); err != nil {
+		return out, err
+	}
 	request := RuntimeRequest{
 		Kind: out.Runtime, Headful: !out.Headless, ExternalPath: out.Chrome,
 	}
@@ -97,6 +102,20 @@ func newAllocCtx(parent context.Context, o LaunchOptions) (context.Context, cont
 	return chromedp.NewExecAllocator(parent, opts...)
 }
 
+// launchNavigate is the start of every stateless run: the launch's colour
+// scheme (set before the page loads, so first paint already matches), then
+// the navigation and the body wait.
+func launchNavigate(o LaunchOptions, url string) []chromedp.Action {
+	actions := []chromedp.Action{}
+	if o.ColorScheme != "" {
+		actions = append(actions, emulation.SetEmulatedMedia().WithFeatures(mediaFeatures(o.ColorScheme)))
+	}
+	return append(actions,
+		chromedp.Navigate(url),
+		chromedp.WaitReady("body", chromedp.ByQuery),
+	)
+}
+
 // Screenshot navigates to url and returns a full-page PNG.
 func Screenshot(ctx context.Context, opts LaunchOptions, url string) ([]byte, error) {
 	return ScreenshotWithCapture(ctx, opts, url, true)
@@ -125,10 +144,7 @@ func ScreenshotWithCaptureAndWait(ctx context.Context, opts LaunchOptions, url s
 	defer cancelTimeout()
 
 	var buf []byte
-	actions := []chromedp.Action{
-		chromedp.Navigate(url),
-		chromedp.WaitReady("body", chromedp.ByQuery),
-	}
+	actions := launchNavigate(o, url)
 	if waitSelector != "" {
 		actions = append(actions, chromedp.WaitVisible(waitSelector, chromedp.ByQuery))
 	}
@@ -156,7 +172,9 @@ func ScreenshotWithCaptureAndWait(ctx context.Context, opts LaunchOptions, url s
 //
 // Eval navigates to url, waits for body, runs js (an expression — wrap
 // statements in `(()=>{ ... return result; })()`), and decodes the result
-// into out via JSON.
+// into out via JSON. A returned Promise is awaited, so an async expression
+// gives its resolved value (an unresolved promise would decode as `{}`). To
+// start work without waiting for it, return something else (`void p`).
 func Eval(ctx context.Context, opts LaunchOptions, url, js string, out any) error {
 	o, err := opts.normalize()
 	if err != nil {
@@ -170,41 +188,19 @@ func Eval(ctx context.Context, opts LaunchOptions, url, js string, out any) erro
 	taskCtx, cancelTimeout := context.WithTimeout(taskCtx, o.Timeout)
 	defer cancelTimeout()
 
-	if err := chromedp.Run(taskCtx,
-		chromedp.Navigate(url),
-		chromedp.WaitReady("body", chromedp.ByQuery),
-		chromedp.ActionFunc(func(ctx context.Context) error { return evaluationError(chromedp.Evaluate(js, out).Do(ctx)) }),
-	); err != nil {
+	actions := append(launchNavigate(o, url),
+		chromedp.ActionFunc(func(ctx context.Context) error { return runEvalPromise(ctx, js, out) }),
+	)
+	if err := chromedp.Run(taskCtx, actions...); err != nil {
 		return fmt.Errorf("eval %s: %w", url, err)
 	}
 	return nil
 }
 
-// EvalAwait is like Eval but awaits a returned Promise, so an async expression
-// (e.g. `(async () => { ...; return x })()`) resolves before the value is read,
-// instead of returning the unresolved promise as `{}`. Reuses the same
-// promise-aware runtime path as the session/extension evaluators.
+// EvalAwait is Eval. Eval awaits a returned Promise as well; the name stays
+// for existing callers.
 func EvalAwait(ctx context.Context, opts LaunchOptions, url, js string, out any) error {
-	o, err := opts.normalize()
-	if err != nil {
-		return err
-	}
-	defer o.runtimeUnlock()
-	allocCtx, cancelAlloc := newAllocCtx(ctx, o)
-	defer cancelAlloc()
-	taskCtx, cancelTask := chromedp.NewContext(allocCtx)
-	defer cancelTask()
-	taskCtx, cancelTimeout := context.WithTimeout(taskCtx, o.Timeout)
-	defer cancelTimeout()
-
-	if err := chromedp.Run(taskCtx,
-		chromedp.Navigate(url),
-		chromedp.WaitReady("body", chromedp.ByQuery),
-		chromedp.ActionFunc(func(ctx context.Context) error { return runEvalPromise(ctx, js, out) }),
-	); err != nil {
-		return fmt.Errorf("eval %s: %w", url, err)
-	}
-	return nil
+	return Eval(ctx, opts, url, js, out)
 }
 
 // FetchHTML navigates to url, waits for body, and returns rendered HTML.
@@ -223,11 +219,8 @@ func FetchHTML(ctx context.Context, opts LaunchOptions, url string) (string, err
 	defer cancelTimeout()
 
 	var html string
-	if err := chromedp.Run(taskCtx,
-		chromedp.Navigate(url),
-		chromedp.WaitReady("body", chromedp.ByQuery),
-		chromedp.OuterHTML("html", &html, chromedp.ByQuery),
-	); err != nil {
+	actions := append(launchNavigate(o, url), chromedp.OuterHTML("html", &html, chromedp.ByQuery))
+	if err := chromedp.Run(taskCtx, actions...); err != nil {
 		return "", fmt.Errorf("fetch %s: %w", url, err)
 	}
 	return html, nil

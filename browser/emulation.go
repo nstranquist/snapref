@@ -27,7 +27,16 @@ type DeviceEmulation struct {
 	DeviceScaleFactor float64 `json:"device_scale_factor,omitempty"` // 0 = 1
 	Mobile            bool    `json:"mobile,omitempty"`
 	Touch             bool    `json:"touch,omitempty"`
+	// ColorScheme emulates the prefers-color-scheme media feature: "light",
+	// "dark", or "" for the browser's own value.
+	ColorScheme string `json:"color_scheme,omitempty"`
 }
+
+// Color schemes accepted by DeviceEmulation.ColorScheme.
+const (
+	ColorSchemeLight = "light"
+	ColorSchemeDark  = "dark"
+)
 
 // MobileDeviceScaleFactor is the default DPR for --mobile emulation.
 const MobileDeviceScaleFactor = 2
@@ -52,7 +61,16 @@ func (e DeviceEmulation) Validate() error {
 	if e.DeviceScaleFactor < 0 || e.DeviceScaleFactor > 8 {
 		return fmt.Errorf("device scale factor %g out of range (0-8)", e.DeviceScaleFactor)
 	}
-	return nil
+	return validColorScheme(e.ColorScheme)
+}
+
+// validColorScheme accepts "" (no override), light or dark.
+func validColorScheme(scheme string) error {
+	switch scheme {
+	case "", ColorSchemeLight, ColorSchemeDark:
+		return nil
+	}
+	return fmt.Errorf("color scheme %q: use light or dark", scheme)
 }
 
 // Scale returns the effective device scale factor.
@@ -63,7 +81,8 @@ func (e DeviceEmulation) Scale() float64 {
 	return e.DeviceScaleFactor
 }
 
-// String renders "390x844", plus "@2x", " mobile" and " touch" when set.
+// String renders "390x844", plus "@2x", " mobile", " touch" and the colour
+// scheme when set. The holder compares these strings to see a new spec.
 func (e DeviceEmulation) String() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%dx%d", e.Width, e.Height)
@@ -76,7 +95,28 @@ func (e DeviceEmulation) String() string {
 	if e.Touch {
 		b.WriteString(" touch")
 	}
+	if e.ColorScheme != "" {
+		b.WriteString(" " + e.ColorScheme)
+	}
 	return b.String()
+}
+
+// mediaParams is the Emulation.setEmulatedMedia call for a colour scheme. An
+// empty scheme clears the feature, so a previous dark override never leaks
+// into a spec without one.
+func mediaParams(colorScheme string) map[string]any {
+	features := []map[string]string{}
+	if colorScheme != "" {
+		features = append(features, map[string]string{"name": "prefers-color-scheme", "value": colorScheme})
+	}
+	return map[string]any{"features": features}
+}
+
+func mediaFeatures(colorScheme string) []*emulation.MediaFeature {
+	if colorScheme == "" {
+		return []*emulation.MediaFeature{}
+	}
+	return []*emulation.MediaFeature{{Name: "prefers-color-scheme", Value: colorScheme}}
 }
 
 func (e DeviceEmulation) metricsParams() map[string]any {
@@ -99,8 +139,9 @@ func touchParams(enabled bool) map[string]any {
 }
 
 // applyEmulationOnConn sets (e != nil) or clears (e == nil) the device
-// override on one raw CDP connection. Touch is always written so a previous
-// touch override never leaks into a non-touch emulation.
+// override on one raw CDP connection. Touch and media are always written so a
+// previous touch or colour scheme override never leaks into a spec without
+// one.
 func applyEmulationOnConn(ctx context.Context, conn cdpTransport, e *DeviceEmulation) error {
 	id := emulationCallIDBase
 	next := func() int64 { id++; return id }
@@ -108,7 +149,10 @@ func applyEmulationOnConn(ctx context.Context, conn cdpTransport, e *DeviceEmula
 		if _, err := cdpCall(ctx, conn, next(), "Emulation.clearDeviceMetricsOverride", nil); err != nil {
 			return err
 		}
-		_, err := cdpCall(ctx, conn, next(), "Emulation.setTouchEmulationEnabled", touchParams(false))
+		if _, err := cdpCall(ctx, conn, next(), "Emulation.setTouchEmulationEnabled", touchParams(false)); err != nil {
+			return err
+		}
+		_, err := cdpCall(ctx, conn, next(), "Emulation.setEmulatedMedia", mediaParams(""))
 		return err
 	}
 	if err := e.Validate(); err != nil {
@@ -117,7 +161,10 @@ func applyEmulationOnConn(ctx context.Context, conn cdpTransport, e *DeviceEmula
 	if _, err := cdpCall(ctx, conn, next(), "Emulation.setDeviceMetricsOverride", e.metricsParams()); err != nil {
 		return err
 	}
-	_, err := cdpCall(ctx, conn, next(), "Emulation.setTouchEmulationEnabled", touchParams(e.Touch))
+	if _, err := cdpCall(ctx, conn, next(), "Emulation.setTouchEmulationEnabled", touchParams(e.Touch)); err != nil {
+		return err
+	}
+	_, err := cdpCall(ctx, conn, next(), "Emulation.setEmulatedMedia", mediaParams(e.ColorScheme))
 	return err
 }
 
@@ -128,7 +175,10 @@ func emulationActions(e *DeviceEmulation) chromedp.Action {
 			if err := emulation.ClearDeviceMetricsOverride().Do(ctx); err != nil {
 				return err
 			}
-			return emulation.SetTouchEmulationEnabled(false).Do(ctx)
+			if err := emulation.SetTouchEmulationEnabled(false).Do(ctx); err != nil {
+				return err
+			}
+			return emulation.SetEmulatedMedia().WithFeatures(mediaFeatures("")).Do(ctx)
 		}
 		if err := e.Validate(); err != nil {
 			return err
@@ -144,7 +194,10 @@ func emulationActions(e *DeviceEmulation) chromedp.Action {
 		if e.Touch {
 			touch = touch.WithMaxTouchPoints(5)
 		}
-		return touch.Do(ctx)
+		if err := touch.Do(ctx); err != nil {
+			return err
+		}
+		return emulation.SetEmulatedMedia().WithFeatures(mediaFeatures(e.ColorScheme)).Do(ctx)
 	})
 }
 

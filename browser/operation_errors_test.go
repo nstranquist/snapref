@@ -13,7 +13,7 @@ import (
 func TestOperationErrorsIgnorePageText(t *testing.T) {
 	for _, message := range []string{"policy denied", "context canceled selector transport", "secret=https://user:password@example.test"} {
 		exception := &runtime.ExceptionDetails{Text: message}
-		eval := fmt.Errorf("outer: %w", evaluationError(exception))
+		eval := fmt.Errorf("outer: %w", &JavaScriptEvalError{Cause: exception})
 		if got := ClassifyError(eval); got != ErrorClassUsage {
 			t.Fatalf("eval class=%s", got)
 		}
@@ -32,7 +32,7 @@ func TestOperationErrorsIgnorePageText(t *testing.T) {
 		}
 	}
 	for _, original := range []error{context.DeadlineExceeded, context.Canceled, errors.New("websocket connection refused")} {
-		if evaluationError(original) != original || selectionError(original) != original {
+		if selectionError(original) != original {
 			t.Fatal("non-JS error was rewritten")
 		}
 	}

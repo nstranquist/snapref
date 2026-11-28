@@ -46,6 +46,64 @@ func TestScreenshotNeverActivatesTarget(t *testing.T) {
 	}
 }
 
+// A full page capture of a scrolled page starts at the top,
+// so sticky and fixed elements are not drawn mid-image, and then gives the
+// page its scroll position back. A viewport capture keeps the scroll.
+func TestFullPageCaptureScrollsToTopAndRestores(t *testing.T) {
+	scrolled := func(call recordedCall) string {
+		switch {
+		case call.Method == "Page.captureScreenshot":
+			return `{"data":"cG5n"}`
+		case strings.Contains(call.Params, "window.scrollX"):
+			return `{"result":{"type":"object","value":[0,480]}}`
+		}
+		return ""
+	}
+	conn := &recordingTransport{respond: scrolled}
+	if png, err := captureCurrentScreenshot(context.Background(), conn, true); err != nil || string(png) != "png" {
+		t.Fatalf("capture = %q, %v", png, err)
+	}
+	var order []string
+	for _, call := range conn.calls {
+		switch {
+		case strings.Contains(call.Params, "window.scrollX"):
+			order = append(order, "to-top")
+		case strings.Contains(call.Params, "top: 480"):
+			order = append(order, "restore")
+		case call.Method == "Page.captureScreenshot":
+			order = append(order, "capture")
+		}
+	}
+	if strings.Join(order, ",") != "to-top,capture,restore" {
+		t.Fatalf("full page order = %v, want to-top,capture,restore", order)
+	}
+
+	viewport := &recordingTransport{respond: scrolled}
+	if _, err := captureCurrentScreenshot(context.Background(), viewport, false); err != nil {
+		t.Fatal(err)
+	}
+	for _, call := range viewport.calls {
+		if strings.Contains(call.Params, "scrollTo") || strings.Contains(call.Params, "window.scrollX") {
+			t.Fatalf("viewport capture touched the scroll: %s %s", call.Method, call.Params)
+		}
+	}
+
+	atTop := &recordingTransport{respond: func(call recordedCall) string {
+		if strings.Contains(call.Params, "window.scrollX") {
+			return `{"result":{"type":"object","value":[0,0]}}`
+		}
+		return ""
+	}}
+	if _, err := captureCurrentScreenshot(context.Background(), atTop, true); err != nil {
+		t.Fatal(err)
+	}
+	for _, call := range atTop.calls {
+		if strings.Contains(call.Params, "behavior") && !strings.Contains(call.Params, "window.scrollX") {
+			t.Fatalf("page at the top got a restore call: %s", call.Params)
+		}
+	}
+}
+
 type blockingScreenshotTransport struct {
 	closed chan struct{}
 	once   sync.Once
@@ -170,5 +228,61 @@ func TestScreenshotCaptureParamsFullPageUsesContentClip(t *testing.T) {
 	}
 	if got := clip["scale"]; got != 1 {
 		t.Fatalf("clip scale = %#v, want 1", got)
+	}
+}
+
+// Real Chrome: a full page capture of a scrolled page draws
+// the sticky header at the top, not at the scroll position, and leaves the
+// page scrolled where it was.
+func TestFullPageCaptureStartsAtTopRealChrome(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping browser integration test in -short mode")
+	}
+	requireManagedChromeForTesting(t)
+	fixture := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = io.WriteString(w, `<!doctype html><html><head><style>
+html{scroll-behavior:smooth} html,body{margin:0;background:#fff}
+header{position:sticky;top:0;height:40px;background:#000} main{height:3000px}
+</style></head><body><header></header><main>scroll fixture</main></body></html>`)
+	}))
+	defer fixture.Close()
+
+	const name = "full-page-scroll-e2e"
+	sess, err := Open(OpenOptions{Name: name, Runtime: RuntimeChromeForTesting, ReadyTimeout: 30 * time.Second})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer Close(name, true)
+	ctx := context.Background()
+	if err := RemoteNavigate(ctx, sess, fixture.URL, 30*time.Second); err != nil {
+		t.Fatalf("navigate: %v", err)
+	}
+	var y float64
+	if err := RemoteEval(ctx, sess, "", `window.scrollTo({top: 1500, behavior: "instant"}); scrollY`, &y, 10*time.Second); err != nil || y != 1500 {
+		t.Fatalf("scroll: y=%v err=%v", y, err)
+	}
+	png, err := RemoteScreenshotCurrentWithOptions(ctx, sess, ScreenshotCurrentOptions{CaptureBeyondViewport: true, Timeout: 20 * time.Second})
+	if err != nil {
+		t.Fatalf("full page capture: %v", err)
+	}
+	width, height := pngSize(t, png)
+	var cssWidth float64
+	if err := RemoteEval(ctx, sess, "", `innerWidth`, &cssWidth, 10*time.Second); err != nil || cssWidth <= 0 {
+		t.Fatalf("innerWidth: %v %v", cssWidth, err)
+	}
+	scale := float64(width) / cssWidth
+	if want := int(3040 * scale); height < want-2 {
+		t.Fatalf("full page height %d, want about %d", height, want)
+	}
+	at := func(cssY float64) int { return pngLuma(t, png, 10, int(cssY*scale)) }
+	if luma := at(10); luma > 40 {
+		t.Fatalf("header row luma %d: the sticky header is not at the top of the image", luma)
+	}
+	if luma := at(1500 + 10); luma < 215 {
+		t.Fatalf("row at the old scroll position luma %d: the sticky header was drawn mid-image", luma)
+	}
+	if err := RemoteEval(ctx, sess, "", `scrollY`, &y, 10*time.Second); err != nil || y != 1500 {
+		t.Fatalf("scroll after capture: y=%v err=%v, want 1500", y, err)
 	}
 }
